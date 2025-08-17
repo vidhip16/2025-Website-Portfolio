@@ -1,0 +1,332 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+    cursor: none; /* Hide default cursor */
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    /* Use Geist font variables provisioned on <html> to avoid hydration differences */
+    font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell",
+      "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.025em;
+    cursor: none;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .font-mono {
+    font-family: var(--font-mono), ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
+    letter-spacing: 0.05em;
+  }
+
+  /* Custom Futuristic Cursor */
+  .cursor {
+    position: fixed;
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ff0080;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    mix-blend-mode: difference;
+    will-change: transform;
+    transition: transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease, width 0.2s ease, height 0.2s ease;
+    box-shadow: 0 0 10px #ff0080, inset 0 0 10px #ff0080;
+  }
+
+  .cursor::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4px;
+    height: 4px;
+    background: #ff0080;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 5px #ff0080;
+  }
+
+  .cursor.hover {
+    width: 40px;
+    height: 40px;
+    border-color: #8b5cf6;
+    box-shadow: 0 0 20px #8b5cf6, inset 0 0 20px #8b5cf6;
+  }
+
+  .cursor.hover::before {
+    background: #8b5cf6;
+    box-shadow: 0 0 10px #8b5cf6;
+  }
+}
+
+@layer utilities {
+  .glow-text {
+    text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+    animation: textGlow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes textGlow {
+    from {
+      text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+    }
+    to {
+      text-shadow: 0 0 20px currentColor, 0 0 30px currentColor, 0 0 40px currentColor;
+    }
+  }
+
+  .glow-panel {
+    box-shadow: 0 0 20px rgba(255, 0, 128, 0.1), 0 0 40px rgba(139, 92, 246, 0.05), inset 0 1px 0
+      rgba(255, 255, 255, 0.1);
+    animation: panelGlow 4s ease-in-out infinite alternate;
+  }
+
+  @keyframes panelGlow {
+    from {
+      box-shadow: 0 0 20px rgba(255, 0, 128, 0.1), 0 0 40px rgba(139, 92, 246, 0.05), inset 0 1px 0
+        rgba(255, 255, 255, 0.1);
+    }
+    to {
+      box-shadow: 0 0 30px rgba(255, 0, 128, 0.15), 0 0 60px rgba(139, 92, 246, 0.1), inset 0 1px 0
+        rgba(255, 255, 255, 0.15);
+    }
+  }
+
+  .command-module {
+    position: relative;
+    overflow: hidden;
+    animation: moduleFloat 6s ease-in-out infinite;
+  }
+
+  @keyframes moduleFloat {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+
+  .command-module::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 0, 128, 0.3), transparent);
+    transition: left 0.5s;
+  }
+
+  .command-module:hover::before {
+    left: 100%;
+  }
+
+  .command-module:hover {
+    animation: moduleHover 0.3s ease-in-out;
+  }
+
+  @keyframes moduleHover {
+    0% {
+      transform: scale(1) translateY(0);
+    }
+    50% {
+      transform: scale(1.05) translateY(-10px);
+    }
+    100% {
+      transform: scale(1.05) translateY(-5px);
+    }
+  }
+
+  .project-card {
+    position: relative;
+    overflow: hidden;
+    animation: cardFloat 8s ease-in-out infinite;
+  }
+
+  @keyframes cardFloat {
+    0%,
+    100% {
+      transform: translateY(0px) rotateX(0deg);
+    }
+    25% {
+      transform: translateY(-3px) rotateX(1deg);
+    }
+    75% {
+      transform: translateY(3px) rotateX(-1deg);
+    }
+  }
+
+  .project-card::after {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: conic-gradient(
+      from 0deg,
+      transparent,
+      rgba(255, 0, 128, 0.15),
+      transparent,
+      rgba(139, 92, 246, 0.15),
+      transparent
+    );
+    animation: rotate 4s linear infinite;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .project-card:hover::after {
+    opacity: 1;
+  }
+
+  .project-card:hover {
+    animation: cardHover 0.5s ease-in-out forwards;
+  }
+
+  @keyframes cardHover {
+    0% {
+      transform: translateY(0) scale(1);
+    }
+    100% {
+      transform: translateY(-10px) scale(1.02);
+    }
+  }
+
+  @keyframes rotate {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* Enhanced background pattern - brighter */
+  .bg-tech-pattern {
+    background-image: radial-gradient(circle at 25% 25%, rgba(255, 0, 128, 0.3) 1px, transparent 1px),
+      radial-gradient(circle at 75% 75%, rgba(139, 92, 246, 0.3) 1px, transparent 1px),
+      linear-gradient(45deg, transparent 49%, rgba(255, 0, 128, 0.2) 50%, transparent 51%),
+      linear-gradient(-45deg, transparent 49%, rgba(139, 92, 246, 0.2) 50%, transparent 51%);
+    background-size: 50px 50px, 30px 30px, 20px 20px, 20px 20px;
+    animation: patternShift 20s linear infinite;
+  }
+
+  @keyframes patternShift {
+    0% {
+      background-position: 0 0, 0 0, 0 0, 0 0;
+    }
+    100% {
+      background-position: 50px 50px, 30px 30px, 20px 20px, -20px -20px;
+    }
+  }
+
+  /* Timeline animations */
+  .timeline-item {
+    animation: timelineFloat 10s ease-in-out infinite;
+  }
+
+  .timeline-item:nth-child(even) {
+    animation-delay: -5s;
+  }
+
+  @keyframes timelineFloat {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    50% {
+      transform: translateX(5px);
+    }
+  }
+
+  /* Button animations */
+  button,
+  .button {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  button:hover,
+  .button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(255, 0, 128, 0.2);
+  }
+
+  button::before,
+  .button::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: left 0.5s;
+  }
+
+  button:hover::before,
+  .button:hover::before {
+    left: 100%;
+  }
+
+  /* Custom scrollbar with animation */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #000;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(to bottom, #ff0080, #8b5cf6);
+    border-radius: 4px;
+    animation: scrollbarGlow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes scrollbarGlow {
+    from {
+      box-shadow: 0 0 5px rgba(255, 0, 128, 0.5);
+    }
+    to {
+      box-shadow: 0 0 15px rgba(255, 0, 128, 0.8);
+    }
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to bottom, #ff0080, #8b5cf6);
+    box-shadow: 0 0 20px rgba(255, 0, 128, 1);
+  }
+
+  /* Input field animations */
+  input,
+  textarea {
+    transition: all 0.3s ease;
+  }
+
+  input:focus,
+  textarea:focus {
+    transform: scale(1.02);
+    box-shadow: 0 0 20px rgba(255, 0, 128, 0.3);
+  }
+}

@@ -1,0 +1,30 @@
+cat > .gitignore << 'EOF'
+# Dependencies
+node_modules/
+.pnp.*/
+
+# Builds / caches
+.next/
+out/
+dist/
+build/
+.cache/
+turbo/
+.vercel/
+.next-static/
+
+# Env & local
+.env*
+!.env.example
+.DS_Store
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.vscode/
+.idea/
+
+# OS / misc
+Thumbs.db
+EOF
