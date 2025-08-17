@@ -68,7 +68,7 @@ export function ContactSection() {
                     <Phone className="w-5 h-5 text-pink-400" />
                     <div>
                       <div className="text-xs text-gray-400 font-mono">PHONE</div>
-                      <div className="text-white">+1 (555) 123-4567</div>
+                      <div className="text-white">+1 (647) 528-0680</div>
                     </div>
                   </div>
 
@@ -76,7 +76,7 @@ export function ContactSection() {
                     <MapPin className="w-5 h-5 text-pink-400" />
                     <div>
                       <div className="text-xs text-gray-400 font-mono">LOCATION</div>
-                      <div className="text-white">San Francisco, CA</div>
+                      <div className="text-white">Toronto, ON</div>
                     </div>
                   </div>
                 </div>
@@ -88,7 +88,7 @@ export function ContactSection() {
                     size="sm"
                     className="bg-transparent border-pink-500/30 text-pink-400 hover:bg-pink-500/10 hover:border-pink-500/50"
                   >
-                    <a href="https://github.com" target="_blank" rel="noreferrer noopener">
+                    <a href="https://github.com/vidhip16" target="_blank" rel="noreferrer noopener">
                       <Github className="w-4 h-4 mr-2" /> GitHub
                     </a>
                   </Button>
@@ -98,7 +98,7 @@ export function ContactSection() {
                     size="sm"
                     className="bg-transparent border-violet-500/30 text-violet-400 hover:bg-violet-500/10 hover:border-violet-500/50"
                   >
-                    <a href="https://linkedin.com" target="_blank" rel="noreferrer noopener">
+                    <a href="https://www.linkedin.com/in/vidhi-patel-717256309/" target="_blank" rel="noreferrer noopener">
                       <Linkedin className="w-4 h-4 mr-2" /> LinkedIn
                     </a>
                   </Button>

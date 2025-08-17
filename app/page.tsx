@@ -244,7 +244,7 @@ export default function FuturisticPortfolio() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
             >
-              VP.exe
+              VP
             </motion.div>
 
             <div className="hidden md:flex space-x-8">
@@ -411,31 +411,19 @@ export default function FuturisticPortfolio() {
             <div className="space-y-12">
               {[
                 {
-                  year: "2024",
-                  title: "Senior System Architect",
-                  company: "TechCorp Solutions",
-                  description: "Leading cloud infrastructure design and implementation for enterprise clients.",
+                  year: "2024 — Present",
+                  title: "IT Intern",
+                  company: "Vortex Freight Systems",
+                  description:
+                    "Supporting internal tooling, automation scripts, and system maintenance. Contributed to documentation and improved onboarding for faster developer ramp-up.",
                   icon: Briefcase,
                 },
                 {
-                  year: "2022",
-                  title: "DevOps Engineer",
-                  company: "InnovateTech",
-                  description: "Implemented CI/CD pipelines and automated deployment processes.",
-                  icon: Code,
-                },
-                {
-                  year: "2020",
-                  title: "Full Stack Developer",
-                  company: "StartupXYZ",
-                  description: "Developed scalable web applications using modern frameworks and technologies.",
-                  icon: Code,
-                },
-                {
-                  year: "2019",
-                  title: "AWS Certified Solutions Architect",
-                  company: "Amazon Web Services",
-                  description: "Achieved professional certification in cloud architecture and design.",
+                  year: "2023 — Present",
+                  title: "B.A. in Information Technology",
+                  company: "York University",
+                  description:
+                    "Coursework in systems design, networking, web development, and software engineering. Active in hands-on projects that connect theory to practical outcomes.",
                   icon: Award,
                 },
               ].map((item, index) => (
