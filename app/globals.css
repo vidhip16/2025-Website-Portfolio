@@ -81,6 +81,10 @@
     animation: textGlow 2s ease-in-out infinite alternate;
   }
 
+  .text-shadow-glow {
+    text-shadow: 0 0 15px rgba(255, 0, 128, 0.8), 0 0 25px rgba(139, 92, 246, 0.6);
+  }
+
   @keyframes textGlow {
     from {
       text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
@@ -191,6 +195,7 @@
     animation: rotate 4s linear infinite;
     opacity: 0;
     transition: opacity 0.3s;
+    pointer-events: none;
   }
 
   .project-card:hover::after {

@@ -25,6 +25,7 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import { AspectRatio } from "@/components/ui/aspect-ratio"
+import { Skeleton } from "@/components/ui/skeleton"
 
 /**
  * AboutSection
@@ -180,6 +181,8 @@ export function AboutSection() {
   const [tilt, setTilt] = useState<{ rx: number; ry: number }>({ rx: 0, ry: 0 })
   const [innerSize, setInnerSize] = useState<number>(200)
   const [outerSize, setOuterSize] = useState<number>(320)
+  const [imageLoading, setImageLoading] = useState(true)
+  const [imageError, setImageError] = useState(false)
   const galaxyRef = useRef<HTMLDivElement | null>(null)
 
   const handleMouseMove = useCallback<React.MouseEventHandler<HTMLDivElement>>(
@@ -394,13 +397,31 @@ export function AboutSection() {
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-pink-500/10 to-violet-500/10" />
                 <div className="relative w-full h-[30rem] md:h-[34rem]">
-                  <Image
-                    src="/profile.JPG"
-                    alt="Profile photo"
-                    fill
-                    className="object-cover"
-                    priority
-                  />
+                  {imageLoading && (
+                    <Skeleton className="absolute inset-0 w-full h-full bg-violet-500/20" />
+                  )}
+                  {!imageError ? (
+                    <Image
+                      src="/profile.JPG"
+                      alt="Profile photo"
+                      fill
+                      className={`object-cover transition-opacity duration-300 ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+                      priority
+                      onLoad={() => setImageLoading(false)}
+                      onError={() => {
+                        setImageLoading(false)
+                        setImageError(true)
+                      }}
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-violet-500/10 text-violet-400">
+                      <div className="text-center">
+                        <div className="text-4xl mb-2">📷</div>
+                        <div className="text-sm">Image unavailable</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="pointer-events-none absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300">
                   <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/60 to-transparent" />

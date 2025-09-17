@@ -2,8 +2,10 @@
 
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { Github } from "lucide-react"
+import { Github, ImageIcon } from "lucide-react"
 import Image from "next/image"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useState } from "react"
 
 /**
  * ProjectsSection
@@ -11,6 +13,21 @@ import Image from "next/image"
  * Note: Filled with provided projects.
  */
 export function ProjectsSection() {
+  const [imageStates, setImageStates] = useState<Record<string, { loading: boolean; error: boolean }>>({})
+
+  const handleImageLoad = (projectTitle: string) => {
+    setImageStates(prev => ({
+      ...prev,
+      [projectTitle]: { ...prev[projectTitle], loading: false }
+    }))
+  }
+
+  const handleImageError = (projectTitle: string) => {
+    setImageStates(prev => ({
+      ...prev,
+      [projectTitle]: { loading: false, error: true }
+    }))
+  }
   const projects = [
     {
       title: "HandleScout",
@@ -89,12 +106,34 @@ export function ProjectsSection() {
               viewport={{ once: true }}
               whileHover={{ scale: 1.02, y: -5 }}
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-pink-500/5 rounded-lg group-hover:from-pink-500/10 group-hover:to-violet-500/10 transition-all duration-300" />
+              <div className="absolute inset-0 bg-gradient-to-br from-violet-500/5 to-pink-500/5 rounded-lg group-hover:from-pink-500/10 group-hover:to-violet-500/10 transition-all duration-300 pointer-events-none" />
 
-              <div className="relative">
+              <div className="relative z-10">
                 <div className="mb-4 overflow-hidden rounded-md border border-violet-500/20">
                   <div className="relative w-full h-40">
-                    <Image src={project.image} alt={project.title} fill className="object-cover" />
+                    {imageStates[project.title]?.loading !== false && (
+                      <Skeleton className="absolute inset-0 w-full h-full bg-violet-500/20" />
+                    )}
+                    {!imageStates[project.title]?.error ? (
+                      <Image 
+                        src={project.image} 
+                        alt={project.title} 
+                        fill 
+                        className={`object-cover transition-opacity duration-300 ${
+                          imageStates[project.title]?.loading !== false ? 'opacity-0' : 'opacity-100'
+                        }`}
+                        onLoad={() => handleImageLoad(project.title)}
+                        onError={() => handleImageError(project.title)}
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-violet-500/10 text-violet-400">
+                        <div className="text-center">
+                          <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+                          <div className="text-xs">Image unavailable</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex justify-between items-start mb-2">
@@ -113,16 +152,25 @@ export function ProjectsSection() {
                   ))}
                 </div>
 
-                <a href={project.href} target="_blank" rel="noreferrer">
+                <div className="relative z-20">
                   <Button
+                    asChild
                     variant="outline"
                     size="sm"
-                    className="w-full bg-transparent border-pink-500/30 text-pink-400 hover:bg-pink-500/10 hover:border-pink-500/50"
+                    className="w-full bg-transparent border-pink-500/30 text-pink-400 hover:bg-pink-500/10 hover:border-pink-500/50 transition-all duration-300"
                   >
-                    <Github className="w-4 h-4 mr-2" />
-                    View on GitHub
+                    <a 
+                      href={project.href} 
+                      target="_blank" 
+                      rel="noreferrer noopener"
+                      className="inline-flex items-center justify-center gap-2 w-full h-full px-3 py-2"
+                      data-hoverable="true"
+                    >
+                      <Github className="w-4 h-4 mr-2" />
+                      View on GitHub
+                    </a>
                   </Button>
-                </a>
+                </div>
               </div>
             </motion.div>
           ))}
