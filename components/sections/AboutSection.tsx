@@ -247,13 +247,14 @@ export function AboutSection() {
             <div>
               <h3 className="text-2xl font-bold text-pink-400 mb-4 font-mono">[PROFILE_DATA]</h3>
               <p className="text-gray-300 leading-relaxed mb-6">
-                Experienced IT professional specializing in system architecture, cloud infrastructure, and digital
-                transformation. Passionate about creating innovative solutions that bridge the gap between complex
-                technical requirements and user-friendly implementations.
+                Aspiring IT professional focused on full-stack development, digital systems, and user-centric 
+                software solutions. Skilled in crafting responsive UIs, designing APIs, and building scalable 
+                backends that prioritize performance and usability.
               </p>
               <p className="text-gray-300 leading-relaxed mb-6">
-                With expertise in modern development frameworks, DevOps practices, and emerging technologies, I
-                architect scalable systems that drive business growth and operational efficiency.
+                Passionate about solving complex problems, effective team collaboration, and delivering clean, 
+                maintainable code that supports long-term growth. Continuously exploring new technologies 
+                and contributing to innovative, efficient, and modern tech ecosystems.
               </p>
 
               <div className="grid grid-cols-2 gap-4">
@@ -270,9 +271,9 @@ export function AboutSection() {
                 <div className="p-4 border border-violet-500/20 rounded bg-black/20">
                   <div className="text-pink-400 font-mono text-sm">HIGHLIGHTS</div>
                   <ul className="list-disc list-inside text-gray-300 text-sm space-y-1">
-                    <li>Built small tools that automated repetitive tasks</li>
-                    <li>Contributed documentation and improved onboarding</li>
-                    <li>Shipped features with guidance and code reviews</li>
+                    <li>Built smart internal tools to streamline repetitive tasks and improve efficiency</li>
+                    <li>Helped enhance onboarding by contributing clear, structured documentation</li>
+                    <li>Collaborated on feature development while learning from team feedback and code reviews</li>
                   </ul>
                 </div>
               </div>
@@ -430,7 +431,7 @@ export function AboutSection() {
               <div className="p-4 border border-violet-500/20 rounded bg-black/20">
                 <div className="text-pink-400 font-mono text-sm mb-1">HOBBIES</div>
                 <p className="text-sm text-gray-300 leading-relaxed">
-                  Music and film production • Building apps on the side • Competitive gaming (Valorant) • Tech tinkering & automation
+                  Music and film production • Building apps on the side • Competitive gaming • Tech tinkering & automation
                 </p>
               </div>
             </div>

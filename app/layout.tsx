@@ -5,7 +5,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Vidhi Patel | Portfolio',
-  description: 'Personal portfolio of Vidhi Patel — IT Professional & System Architect',
+  description: 'Personal portfolio of Vidhi Patel — Aspiring IT Professional',
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',

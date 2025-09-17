@@ -352,7 +352,7 @@ export default function FuturisticPortfolio() {
                   VIDHI
                 </span>{" "}PATEL
               </motion.h1>
-              <p className="text-xl text-gray-300 font-mono">IT PROFESSIONAL • SYSTEM ARCHITECT</p>
+              <p className="text-xl text-gray-300 font-mono">INFORMATION TECHNOLOGY STUDENT | EXPLORING THE DIGITAL WORLD</p>
 
               {/* Animated Corner Brackets */}
               <div className="absolute top-2 left-2 w-4 h-4 border-l-2 border-t-2 border-pink-500" />
@@ -465,7 +465,7 @@ export default function FuturisticPortfolio() {
                   title: "IT Intern",
                   company: "Vortex Freight Systems",
                   description:
-                    "Supporting internal tooling, automation scripts, and system maintenance. Contributed to documentation and improved onboarding for faster developer ramp-up.",
+                    "Provided hands-on technical support by setting up user accounts, configuring workstations, and performing Level 1 diagnostics to troubleshoot hardware and connectivity issues. Streamlined internal operations through automation scripts and supported system maintenance to ensure smooth IT workflows.",
                   icon: Briefcase,
                 },
                 {
@@ -473,7 +473,7 @@ export default function FuturisticPortfolio() {
                   title: "B.A. in Information Technology",
                   company: "York University",
                   description:
-                    "Coursework in systems design, networking, web development, and software engineering. Active in hands-on projects that connect theory to practical outcomes.",
+                    "Coursework in programming, systems analysis, networks, and user-focused design. Focused on building software, databases, and websites that solve real-world problems.",
                   icon: Award,
                 },
               ].map((item, index) => (
@@ -519,7 +519,7 @@ export default function FuturisticPortfolio() {
       {/* Footer */}
       <footer className="py-8 px-6 border-t border-pink-500/20 bg-black/80">
         <div className="container mx-auto text-center">
-          <p className="text-gray-400 font-mono text-sm">© 2024 VIDHI PATEL • SYSTEM ARCHITECT • ALL RIGHTS RESERVED</p>
+          <p className="text-gray-400 font-mono text-sm">© 2024 VIDHI PATEL • ALL RIGHTS RESERVED</p>
         </div>
       </footer>
       </div>
