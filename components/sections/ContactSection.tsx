@@ -131,7 +131,7 @@ export function ContactSection() {
                     <Mail className="w-5 h-5 text-pink-400" />
                     <div>
                       <div className="text-xs text-gray-400 font-mono">EMAIL</div>
-                      <div className="text-white underline underline-offset-2">vidhipat15@gmail.com</div>
+                      <div className="text-white underline underline-offset-2">vidhipat2005@gmail.com</div>
                     </div>
                   </a>
 
