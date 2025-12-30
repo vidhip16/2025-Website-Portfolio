@@ -461,7 +461,7 @@ export default function FuturisticPortfolio() {
             <div className="space-y-12">
               {[
                 {
-                  year: "2024 — Present",
+                  year: "2023 — Present",
                   title: "IT Intern",
                   company: "Vortex Freight Systems",
                   description:
