@@ -519,7 +519,7 @@ export default function FuturisticPortfolio() {
       {/* Footer */}
       <footer className="py-8 px-6 border-t border-pink-500/20 bg-black/80">
         <div className="container mx-auto text-center">
-          <p className="text-gray-400 font-mono text-sm">© 2025 VIDHI PATEL • ALL RIGHTS RESERVED</p>
+          <p className="text-gray-400 font-mono text-sm">© 2026 VIDHI PATEL • ALL RIGHTS RESERVED</p>
         </div>
       </footer>
       </div>
