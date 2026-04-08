@@ -91,7 +91,7 @@ export function ContactSection() {
           <div className="w-24 h-1 bg-gradient-to-r from-pink-500 to-violet-500 mx-auto" />
 
           {/* Resume download (expects /public/resume.pdf) */}
-          <div className="relative z-20 mt-8">
+          {/* <div className="relative z-20 mt-8">
             <Button
               asChild
               variant="outline"
@@ -108,7 +108,7 @@ export function ContactSection() {
                 <Download className="w-4 h-4 mr-2" /> DOWNLOAD RESUME (PDF)
               </a>
             </Button>
-          </div>
+          </div> */}
         </motion.div>
 
         <div className="grid md:grid-cols-2 gap-8">

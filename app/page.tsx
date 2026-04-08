@@ -435,7 +435,8 @@ export default function FuturisticPortfolio() {
             <div className="w-24 h-1 bg-gradient-to-r from-pink-500 to-violet-500 mx-auto mb-8" />
 
             <div className="relative z-20">
-              <Button 
+              {/* Removed resume download button as requested */}
+              {/* <Button 
                 asChild 
                 variant="outline" 
                 className="bg-transparent border-pink-500/30 text-pink-400 hover:bg-pink-500/10 hover:border-pink-500/50 transition-all duration-300"
@@ -450,7 +451,7 @@ export default function FuturisticPortfolio() {
                 >
                   <Download className="w-4 h-4 mr-2" /> DOWNLOAD RESUME (PDF)
                 </a>
-              </Button>
+              </Button> */}
             </div>
           </motion.div>
 
