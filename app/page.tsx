@@ -463,10 +463,10 @@ export default function FuturisticPortfolio() {
               {[
                 {
                   year: "2023 — Present",
-                  title: "IT Intern",
+                  title: "Intern",
                   company: "Vortex Freight Systems",
                   description:
-                    "Provided hands-on technical support by setting up user accounts, configuring workstations, and performing Level 1 diagnostics to troubleshoot hardware and connectivity issues. Streamlined internal operations through automation scripts and supported system maintenance to ensure smooth IT workflows.",
+                    "",
                   icon: Briefcase,
                 },
                 {
