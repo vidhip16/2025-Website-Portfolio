@@ -462,7 +462,15 @@ export default function FuturisticPortfolio() {
             <div className="space-y-12">
               {[
                 {
-                  year: "2023 — Present",
+                  year: "2026 — Present",
+                  title: "Junior IT Associate",
+                  company: "Metro Compactor Service Inc.",
+                  description:
+                    "",
+                  icon: Briefcase,
+                },
+                {
+                  year: "2023 — 2026",
                   title: "Intern",
                   company: "Vortex Freight Systems",
                   description:
@@ -479,7 +487,7 @@ export default function FuturisticPortfolio() {
                 },
               ].map((item, index) => (
                 <motion.div
-                  key={item.year}
+                  key={`${item.company}-${item.title}-${index}`}
                   className="relative flex items-start"
                   initial={{ opacity: 0, x: -50 }}
                   whileInView={{ opacity: 1, x: 0 }}
