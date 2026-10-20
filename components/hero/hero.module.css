@@ -1,0 +1,411 @@
+/* Hero (#home): the layer stack, the R1 composition and the entrance.
+   Blueprint §3.1 + PHASE4 "Hero DOM" and "Revision R1". No JavaScript measures layout: Ping is
+   placed from the same custom properties that size the name, so she always sits inside the tail
+   of "Patel" whatever the viewport.
+
+   Back to front (all inside one isolated stacking context, so the dot canvas can slot in later):
+     z0  .backdrop (grain + arcade and bubblegum glows) and .halo (the lilac ellipse behind Ping)
+     z1  h1.name: "Vidhi" / "Patel" (staggered by --name-patel-indent)
+     z2  .ping-shadow: Ping cast onto the letters
+     z3  figure.ping: the still, the eye canvas, the boop button
+     z4  .front: an aria-hidden copy of "Patel" that draws the lower 36% of its letters in front of Ping
+     z5  .copy: intro, status, links and the wall label
+   No layer has a background fill: the page colour lives on body (--bg), which the scrub tweens.
+
+   Composition (R1, mirrors refs/type-directions/og-A.png): desktop is three zones on one wall:
+   the name bottom-left, Ping seated inside the tail of "Patel", and a right column with the
+   subtitle at the top and the wall label at the bottom beside her. Below 1024 px everything
+   stacks: name, Ping, copy. */
+
+/* ── Tokens ─────────────────────────────────────────────────────────────
+   Public overrides, settable on any ancestor (e.g. :root in globals.css):
+     --name-size        desktop name size        --name-size-sm      below 1024 px
+     --name-weight      --name-track             --name-lh
+     --name-patel-style --name-patel-indent      --name-baseline     (see below)
+     --ping-tuck        how much of Ping's width overlaps the name block (desktop)
+   Every rule reads var(--x, var(--_x)). The private defaults sit here at zero specificity and
+   never shadow an inherited public value. */
+:where(.hero) {
+  /* 21vw as specced; on short screens the two lines (1.6em) never outgrow the room under the nav. */
+  --_name-size: clamp(5.5rem, min(21vw, (100svh - 12rem) / 1.6), 34rem);
+  /* Two line boxes of 26vw each on phones (font-size × .8 line-height), capped on landscape. */
+  --_name-size-sm: min(32.5vw, 30svh);
+  --_name-weight: 400;
+  --_name-track: -0.035em;
+  --_name-lh: 0.8;
+  --_name-patel-style: italic;
+  --_name-patel-indent: 0.42em;
+  /* Baseline height above the bottom of a name line box, as a fraction of the name size:
+     (descent − ascent + line-height) / 2. Instrument Serif: (.31 − .99 + .8) / 2 = .06. */
+  --_name-baseline: 0.06;
+  --_ping-tuck: 0.3;
+}
+
+/* ── Section and grid ─────────────────────────────────────────────────── */
+/* Phones and tablets (< 1024 px): nothing pins. Name at the top, Ping below it with her ear tips
+   tucked behind the lower edge of "Patel", then the copy. */
+.hero {
+  /* The name's font size. Ping, the label and the copy are placed in multiples of it. */
+  --em: var(--name-size-sm, var(--_name-size-sm));
+  --base: var(--name-baseline, var(--_name-baseline));
+  --tuck: var(--ping-tuck, var(--_ping-tuck));
+  --ping-h: 52svh;
+  --ping-w: calc(var(--ping-h) * 929 / 1520);
+  /* Horizontal nudge (fraction of Ping's width): on phones her body, not her box, is centred
+     (the eye midpoint sits at 43.7% of the box). */
+  --ping-x: 0.063;
+
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  min-height: 100svh;
+  display: grid;
+  grid-template-columns: var(--gutter) minmax(0, 1fr) var(--gutter);
+  /* top, name, Ping, copy, bottom */
+  grid-template-rows:
+    calc(var(--nav-h) + clamp(8px, 3svh, 28px))
+    auto
+    auto
+    auto
+    clamp(48px, 9svh, 96px);
+}
+
+/* Desktop (≥ 1024 px, the pinned layout): the name is bottom-anchored in a max-content column, so
+   the column's right edge IS the end of "Patel". Ping hangs off that edge by --tuck of her width,
+   which puts her body over the tail of "Patel" and keeps "Vidhi" clear. */
+@media (min-width: 1024px) {
+  .hero {
+    --em: var(--name-size, var(--_name-size));
+    --ping-h: min(76svh, 900px, 60vw);
+    --ping-x: 0;
+    height: 100svh;
+    min-height: 0;
+    grid-template-columns: var(--gutter) max-content minmax(0, 1fr) var(--gutter);
+    grid-template-rows: var(--nav-h) minmax(0, 1fr) auto clamp(16px, 4svh, 48px);
+  }
+}
+
+/* ── z0: grain and glows (no fill) ───────────────────────────────────── */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 54% 48% at 0% 0%,
+      color-mix(in srgb, var(--arcade) 14%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 50% 46% at 100% 100%,
+      color-mix(in srgb, var(--bubblegum) 30%, transparent),
+      transparent 72%
+    );
+}
+
+/* The lilac ellipse rides in Ping's grid cell, so it is always centred on her. */
+.halo {
+  z-index: 0;
+  pointer-events: none;
+}
+.halo::before {
+  content: "";
+  position: absolute;
+  left: calc(43.7% - 120%);
+  top: -15%;
+  width: 240%;
+  height: 130%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--lilac) 22%, transparent),
+    color-mix(in srgb, var(--lilac) 9%, transparent) 55%,
+    transparent
+  );
+}
+
+/* ── z1: the name ────────────────────────────────────────────────────── */
+.name,
+.front {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: end;
+  justify-self: start;
+  margin: 0;
+  font-size: var(--em);
+  font-weight: var(--name-weight, var(--_name-weight));
+  line-height: var(--name-lh, var(--_name-lh));
+  letter-spacing: var(--name-track, var(--_name-track));
+  white-space: nowrap;
+  color: inherit;
+}
+.name {
+  position: relative;
+  z-index: 1;
+}
+.vidhi,
+.patel,
+.front {
+  display: block;
+}
+.patel,
+.front {
+  padding-inline-start: var(--name-patel-indent, var(--_name-patel-indent));
+  font-style: var(--name-patel-style, var(--_name-patel-style));
+}
+
+/* The real "Patel" draws its upper 64% (plus a 1px overlap, so no seam shows at rest) and the
+   front copy draws the lower 36%. Each band is drawn once, so the pair dims evenly when the scrub
+   fades them. Negative side insets keep italic and tracked overhangs. */
+.patel {
+  clip-path: inset(-0.25em -0.25em calc(36% - 1px) -0.25em);
+}
+
+/* ── z4: the front clip ──────────────────────────────────────────────── */
+.front {
+  position: relative;
+  z-index: 4;
+  clip-path: inset(64% -0.25em -0.25em -0.25em);
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (min-width: 1024px) {
+  .name,
+  .front {
+    grid-row: 3;
+    /* Both stretch to the column, so xPercent moves them by the same distance. */
+    justify-self: stretch;
+  }
+}
+
+/* ── z2 / z3: Ping, her shadow and her halo share one placement ─────── */
+.halo,
+.shadow,
+.ping {
+  grid-column: 2;
+  grid-row: 3;
+  justify-self: center;
+  position: relative;
+  left: calc(var(--ping-w) * var(--ping-x));
+  width: var(--ping-w);
+  height: var(--ping-h);
+  /* Ear tips tuck behind the lower band of "Patel". */
+  margin: calc(var(--em) * -0.18) 0 0;
+  transform-origin: 50% 100%;
+}
+
+@media (min-width: 1024px) {
+  .halo,
+  .shadow,
+  .ping {
+    grid-column: 3;
+    grid-row: 2 / 4;
+    justify-self: start;
+    align-self: end;
+    /* Base on the "Patel" baseline + 3% of her height; left edge tucked over the name block. */
+    margin: 0 0 calc(var(--em) * var(--base) - var(--ping-h) * 0.03) calc(var(--ping-w) * var(--tuck) * -1);
+  }
+  .shadow,
+  .ping {
+    will-change: transform;
+  }
+}
+
+.shadow {
+  z-index: 2;
+  display: block;
+  pointer-events: none;
+  left: calc(var(--ping-w) * (var(--ping-x) + 0.025));
+  top: calc(var(--ping-h) * 0.015);
+}
+.shadowImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: brightness(0) blur(22px);
+  opacity: 0.16;
+}
+
+.ping {
+  z-index: 3;
+}
+.squash {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 100%;
+}
+.body {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* Transparent overlay over the whole figure (always ≥ 44px). The ring follows a soft oval. */
+.boop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 42%;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.boop:focus-visible {
+  outline-offset: 6px;
+  border-radius: 42%;
+}
+
+/* ── z5: copy ────────────────────────────────────────────────────────── */
+.copy {
+  grid-column: 2;
+  grid-row: 4;
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-top: clamp(28px, 7vw, 44px);
+  max-width: 34ch;
+  /* The subtitle size (34ch is measured in it). Status, links and label set their own sizes. */
+  font-size: clamp(1.3rem, 1rem + 1.2vw, 1.5rem);
+}
+/* The scrub fades the copy out; anything focused inside it shows anyway. */
+.copy:focus-within {
+  opacity: 1 !important;
+}
+
+.intro {
+  margin: 0;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.012em;
+}
+/* The subtitle is hero.intro[0] alone (R1/og-A: semibold lead sentence + regular rest). Any further
+   verified intro line is supporting text at body size, so the subtitle keeps its two-sentence shape. */
+.intro + .intro {
+  margin-top: 0.9rem;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+.lead {
+  font-weight: 650;
+}
+.status {
+  margin: 0.9rem 0 0;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, currentColor 76%, transparent);
+}
+.links {
+  margin: 1.25rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+/* The outline button follows the room colours (--fg/--bg), so it still reads if it is focused
+   after the scrub has turned the room to night. Same look as .btn on paper. */
+.links :global(.btn:not(.btn-primary)) {
+  color: inherit;
+  border-color: currentColor;
+}
+.links :global(.btn:not(.btn-primary):hover) {
+  color: var(--bg);
+  background: var(--fg);
+  border-color: var(--fg);
+}
+
+/* The wall label: a gallery caption with a hairline rule above it. */
+.label {
+  align-self: stretch;
+  margin: 2.25rem 0 0;
+  max-width: 19rem;
+  padding-top: 0.8em;
+  border-top: 1.5px solid color-mix(in srgb, currentColor 25%, transparent);
+  font-size: clamp(1.05rem, 0.85rem + 0.35vw, 1.3rem);
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.32;
+}
+
+@media (min-width: 1024px) {
+  /* The right column, from the top of the wall to the "Patel" baseline: subtitle near Ping's
+     ears, wall label at the bottom (its last line on the baseline). --copy-x keeps it clear of
+     her folded ear (97% of her box); the column sits flush with the right gutter. */
+  .copy {
+    --copy-x: calc(var(--ping-w) * (0.97 - var(--tuck)) + clamp(20px, 2.5vw, 40px));
+    grid-column: 3;
+    grid-row: 2 / 4;
+    align-self: stretch;
+    justify-self: end;
+    width: min(27rem, 100% - var(--copy-x));
+    max-width: none;
+    margin: 0 0 calc(var(--em) * var(--base)) var(--copy-x);
+    padding-top: clamp(16px, 8svh, 112px);
+    font-size: clamp(1.15rem, 0.25rem + 1.45vw, 1.6rem);
+  }
+  .links {
+    margin-bottom: clamp(24px, 4svh, 48px);
+  }
+  .label {
+    margin-top: auto;
+  }
+}
+
+/* ── Hand-off (set by the scroll controller from HANDOFF_AT) ─────────── */
+/* The front clip and the shadow drop out in one frame and "Patel" is whole again behind Ping. */
+.hero[data-handoff] .patel {
+  clip-path: none;
+}
+.hero[data-handoff] .front,
+.hero[data-handoff] .shadow {
+  visibility: hidden;
+}
+
+/* ── Entrance: once per session, never under reduced motion or Pause ─── */
+/* "Lights on": the room warms from #E9E4EF to paper. Ping settles 16px; her opacity never changes
+   (LCP). `translate` is never used at rest, so GSAP's later scale tween can't inherit it. */
+@media (prefers-reduced-motion: no-preference) {
+  :global(html:not([data-entered]):not([data-motion="off"])) .hero {
+    animation: lights-on 700ms var(--ease-quint) backwards;
+  }
+  :global(html:not([data-entered]):not([data-motion="off"])) .ping,
+  :global(html:not([data-entered]):not([data-motion="off"])) .shadow {
+    animation: settle 600ms var(--ease-expo) backwards;
+  }
+}
+
+@keyframes lights-on {
+  from {
+    background-color: var(--entrance);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@keyframes settle {
+  from {
+    translate: 0 16px;
+  }
+}
+
+/* ── Forced colours: drop the decoration, keep the words and Ping ───── */
+@media (forced-colors: active) {
+  .backdrop,
+  .halo,
+  .shadow {
+    display: none;
+  }
+}
