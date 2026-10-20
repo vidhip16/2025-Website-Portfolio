@@ -1,9 +1,11 @@
 import { devices, expect, test, type CDPSession, type Page } from "@playwright/test";
+import type { DotsProbe } from "../../lib/gaze";
 import {
   expectProbe,
   gotoAndSettle,
   mergeEvidence,
   percentile,
+  readProbe,
   settleApp,
   skipUnlessQaBuild,
   waitForScrollIdle,
@@ -16,13 +18,22 @@ import {
 //   PW_PERF=1 pnpm exec playwright test --project=perf
 // Evidence: test-results/perf/frame-time.json.
 //
-//   desktop:   rAF interval p95 ≤ 18 ms while scrolling, unthrottled
+//   desktop:   rAF interval p95 ≤ 18 ms while scrolling, unthrottled (T2 dot tier, 12k points)
 //   mobile 4×: rAF interval p90 ≤ 20 ms at 4× CPU throttle on a 390 px touch viewport (T1 tier)
+//
+// The budget only means something at the tier it is written for. The §5.5 governor drops a tier for
+// good when p90 stays above 20 ms (T2 → T1 → T0 halftones), so each run reads window.__dots.tier
+// after the warm pass and again after the scroll, records both in the evidence, and the tests
+// assert them before the percentile: a p95 measured on fewer points or on halftones fails.
 
 // In order, in one worker; a desktop failure must not skip the mobile run (no "serial").
 test.describe.configure({ mode: "default" });
 
+type DotsTier = DotsProbe["tier"];
+
 type Run = {
+  /** window.__dots.tier after the warm pass and after the scroll (null: no probe). */
+  dotsTier: { warm: DotsTier | null; end: DotsTier | null };
   viewport: { width: number; height: number } | null;
   cpuThrottle: number;
   scroll: "wheel" | "touch";
@@ -36,6 +47,9 @@ type Run = {
   mean: number;
   longTasks: { count: number; totalMs: number; maxMs: number };
 };
+
+const dotsTier = async (page: Page): Promise<DotsTier | null> =>
+  (await readProbe<Pick<DotsProbe, "tier"> | null>(page, "__dots"))?.tier ?? null;
 
 const atBottom = (page: Page) =>
   page.evaluate(() => window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4);
@@ -51,6 +65,9 @@ async function measure(page: Page, opts: { scroll: "wheel" | "touch"; cdp: CDPSe
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await waitForScrollIdle(page);
   await page.waitForTimeout(1200);
+  // The stage is mounted and ticking again at the top; a drop during the warm pass shows here.
+  await expectProbe(page, "__dots");
+  const tierWarm = await dotsTier(page);
 
   const vp = page.viewportSize()!;
   if (opts.scroll === "wheel") await page.mouse.move(Math.round(vp.width / 2), Math.round(vp.height / 2));
@@ -75,6 +92,7 @@ async function measure(page: Page, opts: { scroll: "wheel" | "touch"; cdp: CDPSe
   }
   await waitForScrollIdle(page);
   const durationMs = Date.now() - start;
+  const tierEnd = await dotsTier(page);
 
   const data = await page.evaluate(() => {
     const p = window.__perf as unknown as { frames: number[]; longTasks?: number[] };
@@ -86,6 +104,7 @@ async function measure(page: Page, opts: { scroll: "wheel" | "touch"; cdp: CDPSe
   expect(f.length, "window.__perf recorded no frames").toBeGreaterThan(30);
   const round = (n: number) => Math.round(n * 100) / 100;
   return {
+    dotsTier: { warm: tierWarm, end: tierEnd },
     viewport: page.viewportSize(),
     cpuThrottle: opts.cpuThrottle,
     scroll: opts.scroll,
@@ -117,6 +136,10 @@ test.describe("frame time @perf", () => {
     const cdp = await page.context().newCDPSession(page);
     const run = await measure(page, { scroll: "wheel", cdp, cpuThrottle: 1 });
     mergeEvidence(info, "perf/frame-time.json", "desktop", run);
+    expect(
+      run.dotsTier,
+      "desktop must be measured at T2 (12k points) before and after the scroll; a drop means the governor fired or the stage never started",
+    ).toEqual({ warm: "T2", end: "T2" });
     expect(run.p95, `desktop p95 ${run.p95} ms (p90 ${run.p90}, max ${run.max})`).toBeLessThanOrEqual(18);
   });
 
@@ -134,6 +157,10 @@ test.describe("frame time @perf", () => {
       const cdp = await page.context().newCDPSession(page);
       const run = await measure(page, { scroll: "touch", cdp, cpuThrottle: 4 });
       mergeEvidence(info, "perf/frame-time.json", "mobile-4x", run);
+      expect(
+        run.dotsTier,
+        "mobile must be measured at T1 (4k points) before and after the scroll; a drop to T0 means the governor fired",
+      ).toEqual({ warm: "T1", end: "T1" });
       // unblock: Phase 5 (the T1 dots tier lands then). The run and its evidence happen now;
       // delete the next line to enforce the budget.
       expect(run.p90, `mobile 4× p90 ${run.p90} ms (p95 ${run.p95}, max ${run.max})`).toBeLessThanOrEqual(20);
