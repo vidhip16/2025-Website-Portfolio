@@ -39,7 +39,7 @@ export function Footer() {
     <footer className="on-night group relative overflow-clip bg-ink px-[var(--gutter)] pb-10 pt-20 text-paper lg:pt-28">
       <div className="mx-auto max-w-[1600px]">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-          <p className="max-w-[20ch] font-display text-[clamp(2.25rem,4.6vw,3.75rem)] italic leading-[1] tracking-[-0.015em] text-lilac">
+          <p className="max-w-[20ch] font-display text-[clamp(2.25rem,4.6vw,3.75rem)] italic leading-[1] tracking-[-0.015em] text-moon">
             {footer.line}
           </p>
           <div className="flex flex-wrap gap-x-10 gap-y-2">

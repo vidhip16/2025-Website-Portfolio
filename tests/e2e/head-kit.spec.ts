@@ -66,6 +66,17 @@ test.describe("head kit", () => {
     for (const t of ["Person", "WebSite", "ProfilePage"]) expect([...types]).toContain(t);
   });
 
+  // Blueprint §8: the home description is 150–160 characters, on every surface that carries it.
+  test("the home description is 150–160 characters on every surface", async ({ page }) => {
+    await page.goto("/");
+    const meta = async (selector: string) => (await page.locator(selector).first().getAttribute("content")) ?? "";
+    const description = await meta('meta[name="description"]');
+    expect(description.length, "meta description length").toBeGreaterThanOrEqual(150);
+    expect(description.length, "meta description length").toBeLessThanOrEqual(160);
+    expect(await meta('meta[property="og:description"]')).toBe(description);
+    expect(await meta('meta[name="twitter:description"]')).toBe(description);
+  });
+
   // unblocked: Phase 6
   test("icons return 200", async ({ request }) => {
     for (const path of ["/icon.svg", "/apple-icon.png"]) {

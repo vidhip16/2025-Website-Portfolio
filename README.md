@@ -27,4 +27,4 @@ All copy lives in `content/`. Only entries marked `verified: true` render.
 
 ## Credits
 
-Fonts: Fraunces, Mona Sans and Departure Mono, all under the SIL Open Font License 1.1.
+Fonts: Instrument Serif, Instrument Sans and Departure Mono, all under the SIL Open Font License 1.1.
