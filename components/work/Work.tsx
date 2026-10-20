@@ -1,25 +1,44 @@
-import { work } from "@/content/site";
+import { about, work } from "@/content/site";
 import { getProjects } from "@/content/projects";
+import { MotionToggle } from "@/components/shell/MotionToggle";
+import { workUi } from "./copy";
+import { buildMosaic } from "./layout";
+import { ListView } from "./ListView";
+import { Mosaic } from "./Mosaic";
+import { ProjectIndex } from "./ProjectIndex";
+import { ViewToggle } from "./ViewToggle";
+import { WorkClient } from "./WorkClient";
+import styles from "./work.module.css";
 
-// Phase 1 stub: index + list of projects. Phase 3 (E) adds the mosaic.
+/**
+ * #work (§3.3, §6): headline, intro, the plain project index and the view
+ * controls on the left; the moving mosaic (or the list view) on the right.
+ * Server component. Only verified projects reach the client islands.
+ */
 export function Work() {
   const projects = getProjects();
+  const columns = buildMosaic(projects, about.photo);
+
   return (
-    <section id="work" aria-labelledby="work-title" className="px-[var(--gutter)] py-24">
-      <span id="projects" />
-      <h2 id="work-title" className="text-[clamp(3rem,6vw,6.5rem)] leading-none">{work.heading}</h2>
-      <p className="mt-4 max-w-[68ch]">{work.intro}</p>
-      <ol className="mt-10 grid gap-8 md:grid-cols-2">
-        {projects.map((p) => (
-          <li key={p.slug}>
-            <h3 className="text-3xl">
-              <a href={`/work/${p.slug}`}>{p.title}</a>
-            </h3>
-            <p className="mt-2">{p.description}</p>
-            <p className="mt-2 text-base">{p.tags.join(", ")}</p>
-          </li>
-        ))}
-      </ol>
+    <section id="work" aria-labelledby="work-title" className={styles.section}>
+      {/* Keeps old #projects links working. */}
+      <span id="projects" className="absolute top-0" />
+      <div className={styles.intro}>
+        <h2 id="work-title" className={styles.heading}>
+          {work.heading}
+        </h2>
+        <p className={styles.lede}>{work.intro}</p>
+        <ProjectIndex projects={projects} />
+        <div className={styles.controls}>
+          <ViewToggle label={work.listToggle} />
+          <MotionToggle className="border-2 border-ink px-4 text-ink" />
+        </div>
+      </div>
+      <div className={styles.stage}>
+        <Mosaic columns={columns} viewLabel={workUi.viewBubble} />
+        <ListView projects={projects} />
+      </div>
+      <WorkClient slugs={projects.map((p) => p.slug)} />
     </section>
   );
 }
