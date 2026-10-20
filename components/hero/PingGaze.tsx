@@ -117,6 +117,8 @@ export function PingGaze({ data }: PingGazeProps) {
     setGyro(state);
     gyroOnRef.current = state === "on";
     engineRef.current?.setGyro(state === "on");
+    // aria-disabled alone isn't reliably announced; say why the toggle stopped working.
+    if (state === "denied" && liveRef.current) liveRef.current.textContent = mascot.lookAroundDenied;
   };
 
   const s = data.strip;
