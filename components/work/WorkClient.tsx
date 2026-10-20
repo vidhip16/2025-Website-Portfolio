@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect } from "react";
+import { fromFlatY } from "@/lib/heroPin";
 import { afterLoadIdle } from "@/lib/idle";
 import { revealDelta, shiftTrack, trackAnimation } from "./reveal";
 import { rememberScroll, takeRestore } from "./scrollMemory";
@@ -32,7 +33,7 @@ export function WorkClient({ slugs }: { slugs: readonly string[] }) {
 
   useLayoutEffect(() => {
     const y = takeRestore();
-    if (y !== null) window.scrollTo({ top: y, behavior: "instant" });
+    if (y !== null) window.scrollTo({ top: fromFlatY(y), behavior: "instant" });
   }, []);
 
   useEffect(() => {

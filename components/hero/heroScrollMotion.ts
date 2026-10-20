@@ -13,10 +13,13 @@
 //   0 until Ping's top reaches the viewport top, then 1 (lib/stage contract).
 // Always: stage.heroInView from an IntersectionObserver.
 //
-// Pause / Play rebuild it. The pin adds 140vh of spacing above everything after the hero, so a
-// rebuild keeps the visitor on the same content. Cleanup reverts everything and is safe to re-run.
+// Pause / Play and the 1024 px breakpoint rebuild it. The pin adds 140vh of spacing above
+// everything after the hero, so a rebuild keeps the visitor on the same content, and so does a
+// reload (positions are kept flat, as if the pin were not in the page: lib/heroPin). Cleanup
+// reverts everything and is safe to re-run.
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { fromFlatY, registerHeroPin, toFlatY } from "@/lib/heroPin";
 import { DESKTOP_MQ, getMotionPrefs, subscribeMotion } from "@/lib/motion";
 import { HANDOFF_AT, stage } from "@/lib/stage";
 
@@ -40,11 +43,32 @@ const HANDOFF_ATTR = "data-handoff";
  */
 const NIGHT_ROOM = NIGHT + (1 - NIGHT) / 2;
 
-const CONDITIONS = {
-  desktop: DESKTOP_MQ,
-  motionOK: "(prefers-reduced-motion: no-preference)",
-  reduce: "(prefers-reduced-motion: reduce)",
-};
+/** sessionStorage: the scrollY and the flat position at the last pagehide (takeReloadPosition). */
+const RELOAD_KEY = "vp:hero-reload";
+
+/**
+ * A reload makes the browser restore the scrollY it recorded, into a page that has no pin yet (the
+ * controller arrives after load + idle). That number was recorded with the pin in the page, so it
+ * is one pin length too far down for anything past the hero. The flat position saved at pagehide
+ * gives the visitor's place back, but only if the page is where that save put it: a deep link, a
+ * different history entry or a scroll since then all mean the live scrollY is the truth. Read once.
+ * (A position inside the pin comes back at the hero's top, as in a rebuild.)
+ */
+function takeReloadPosition(): number | null {
+  try {
+    const raw = sessionStorage.getItem(RELOAD_KEY);
+    if (raw === null) return null;
+    sessionStorage.removeItem(RELOAD_KEY);
+    const nav = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    if (nav?.type !== "reload" && nav?.type !== "back_forward") return null;
+    const saved = JSON.parse(raw) as { y?: unknown; flat?: unknown };
+    if (typeof saved.y !== "number" || typeof saved.flat !== "number") return null;
+    const furthest = document.documentElement.scrollHeight - window.innerHeight;
+    return Math.abs(window.scrollY - Math.min(saved.y, furthest)) <= 2 ? saved.flat : null;
+  } catch {
+    return null;
+  }
+}
 
 export function startHeroScroll(section: HTMLElement): () => void {
   const h1 = section.querySelector<HTMLElement>("h1");
@@ -144,30 +168,33 @@ export function startHeroScroll(section: HTMLElement): () => void {
     };
   };
 
-  let mm: gsap.MatchMedia | null = null;
+  // ── Pinned or flowing ────────────────────────────────────────────────
+  // Not gsap.matchMedia: it flips the build by itself when the viewport crosses 1024 px, and then
+  // nothing keeps the visitor's place (the pin adds or removes 140vh above everything after the
+  // hero). The breakpoint is listened to here with the motion prefs, and both go through rebuild().
+  const desktopMq = window.matchMedia(DESKTOP_MQ);
+  const wantsPin = () => desktopMq.matches && getMotionPrefs().ok;
+
+  let ctx: gsap.Context | null = null;
   const build = () => {
-    mm = gsap.matchMedia();
-    mm.add(CONDITIONS, (ctx) => {
-      const { desktop, motionOK } = ctx.conditions ?? {};
-      return desktop && motionOK && !getMotionPrefs().paused ? pinned() : flowing();
-    });
+    ctx = gsap.context(() => (wantsPin() ? pinned() : flowing()));
   };
 
   // ── Keeping the visitor's place when the pin comes or goes ──────────
-  /** Where the visitor would be on the page without the pin. Inside the pin → the hero's top. */
-  const flatY = () => {
-    const y = window.scrollY;
-    if (!pin) return y;
-    const d = pin.end - pin.start;
-    return y >= pin.end ? y - d : Math.min(y, pin.start);
-  };
-  /** After a rebuild: past the hero → shift by the new pin; at the hero → stay (pin picks it up). */
+  // Positions are flat (lib/heroPin): as if the pin were not in the page. The Work island stores
+  // and restores through the same registered pin.
+  const unregisterPin = registerHeroPin(() =>
+    pin ? { start: pin.start, end: pin.end, height: section.offsetHeight } : null,
+  );
+  const flatY = () => toFlatY(window.scrollY);
+  /** Past the hero → shift by the pin the page has now; at the hero → stay (the pin picks it up). */
   const place = (flat: number) => {
-    const y = pin && flat > pin.start + section.offsetHeight ? flat + (pin.end - pin.start) : flat;
+    const y = fromFlatY(flat);
     if (Math.abs(window.scrollY - y) > 1) window.scrollTo({ top: y, behavior: "instant" });
   };
   const rebuild = (before: number) => {
-    mm?.kill();
+    // revert(), not kill(): kill leaves the inline styles and skips the cleanup function.
+    ctx?.revert();
     build();
     ScrollTrigger.refresh();
     place(before);
@@ -177,20 +204,38 @@ export function startHeroScroll(section: HTMLElement): () => void {
   let unsubscribe = () => {};
   const begin = () => {
     if (stopped) return;
-    // A reload or a deep link may already be scrolled past the hero.
-    const y = window.scrollY;
+    // A deep link may already be scrolled past the hero, and so may a reload.
+    const y = takeReloadPosition() ?? window.scrollY;
     build();
-    if (pin) {
-      ScrollTrigger.refresh();
-      place(y);
-    }
-    let ok = getMotionPrefs().ok;
-    unsubscribe = subscribeMotion(() => {
-      const next = getMotionPrefs().ok;
-      if (next === ok) return;
-      ok = next;
+    if (pin) ScrollTrigger.refresh();
+    place(y);
+
+    let pinnedNow = wantsPin();
+    const onChange = () => {
+      const next = wantsPin();
+      if (next === pinnedNow) return;
+      pinnedNow = next;
       rebuild(flatY());
-    });
+    };
+    const offMotion = subscribeMotion(onChange);
+    desktopMq.addEventListener("change", onChange);
+    // The next load restores this scrollY into a page without the pin (takeReloadPosition).
+    const remember = () => {
+      try {
+        sessionStorage.setItem(
+          RELOAD_KEY,
+          JSON.stringify({ y: Math.round(window.scrollY), flat: Math.round(flatY()) }),
+        );
+      } catch {
+        /* storage blocked: a reload keeps the browser's position */
+      }
+    };
+    window.addEventListener("pagehide", remember);
+    unsubscribe = () => {
+      offMotion();
+      desktopMq.removeEventListener("change", onChange);
+      window.removeEventListener("pagehide", remember);
+    };
   };
 
   // Let the CSS entrance finish first: GSAP folds a running `translate` into its own transform
@@ -208,9 +253,10 @@ export function startHeroScroll(section: HTMLElement): () => void {
   return () => {
     stopped = true;
     unsubscribe();
+    unregisterPin();
     io.disconnect();
-    mm?.kill();
-    mm = null;
+    ctx?.revert();
+    ctx = null;
     pin = null;
     setHandoff(false);
     setNight(false);
