@@ -13,9 +13,11 @@
 //              which the anchor comes on screen. Scatter → envelope: shape 4 → 5 with disperse 1
 //              (the curl noise peaks mid-morph), opacity 0 → 1 over its first 35%.
 // One ticker callback eases every channel toward its trigger's progress (≈ scrub: 1) and then writes
-// the whole state at once in sync(), so the result never depends on which trigger updated last.
+// the whole state at once in sync(), so the result never depends on which trigger updated last. It
+// also re-syncs when heroProgress moves (heroNight feeds the colour and the glow) and after every
+// ScrollTrigger refresh (see onRefresh).
 //
-// State written while the room or contact zone is active (above the room the hero owns everything):
+// State written while the room or contact zone is active:
 //   body --bg/--fg   interpolate(paper → night) at n = max(heroNight, enter) × (1 − exit), where
 //                    heroNight follows the hero's own tween (heroProgress .5 → 1, desktop) so the two
 //                    writers always agree; body[data-room="night"] while n ≥ .5 (the tween midpoint,
@@ -23,6 +25,10 @@
 //   stage.dots       room:    shape 1 + Σ morph_k, disperse 1, opacity 1 − exit, glow n
 //                    contact: shape 4 → 5 (then the success sequence), disperse 1, glow 0
 //   stage.anchor     "room" | "contact" (roomStage.ts; a sharedRequest until lib/stage declares it)
+// Above the room (the hero zone, roomShared HERO_REST): the body is the hero's and the room never
+// paints it; stage.dots goes back to lib/stage's initial values (shape 0, disperse 0, opacity 1),
+// with glow = heroNight. The renderer derives the hero release from heroProgress, and the way back
+// up finds shape 0 for the reverse hand-off.
 // On "contact:success" (desktop): the envelope streams right (stage.dots.stream 0 → 1 over 900 ms;
 // the renderer applies the per-point delay 0–.4 and the ease-in) while it fades, then reforms into
 // Ping seated (shape 0 → 1 with the curl swirl, fading in) and the bubble says mascot.boopLine.
@@ -34,7 +40,15 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { DESKTOP_MQ, getMotionPrefs } from "@/lib/motion";
 import { stage } from "@/lib/stage";
 import { addTick } from "@/lib/ticker";
-import { BOOP_HOLD_MS, CONTACT_SHAPE, HERO_SHAPE, SEAT_SHAPE, visible } from "./roomShared";
+import {
+  BOOP_HOLD_MS,
+  CONTACT_SHAPE,
+  HERO_REST,
+  HERO_SHAPE,
+  SEAT_SHAPE,
+  heroNight,
+  visible,
+} from "./roomShared";
 import {
   getAnchor,
   paintBody,
@@ -47,8 +61,6 @@ import {
   writeDots,
 } from "./roomStage";
 
-/** heroScrollMotion NIGHT: the hero's colour tween runs over heroProgress .5 → 1. */
-const HERO_NIGHT_FROM = 0.5;
 /** Each morph runs over the middle 40% of the gap between two chapter midpoints. */
 const MORPH_FROM = 0.3;
 const MORPH_TO = 0.7;
@@ -166,14 +178,28 @@ function build(room: HTMLElement, desktop: boolean, boopLine: string): () => voi
   window.addEventListener("contact:success", onSent);
 
   // ── One write per frame ──────────────────────────────────────────────
+  /** heroProgress at the last sync (the tick re-syncs when it moves). */
+  let lastHero = Number.NaN;
+
   const sync = () => {
     dirty = false;
+    lastHero = stage.get().heroProgress;
+    // heroNight: the hero's own tween is the writer above the room (desktop pin only).
+    const hn = heroNight(lastHero, desktop);
     const roomOn = enter.value > 0 || exit.value > 0 || morphs.some((c) => c.value > 0);
     const contactOn = contact.value > 0;
-    if (!roomOn && !contactOn) return; // above the room: the hero's (its end state is shape 1, opaque)
+    if (!roomOn && !contactOn) {
+      // The hero zone. Leave the body to the hero's tween and hand the stage back (roomShared
+      // HERO_REST), otherwise a visit to the room leaves seated, dispersed, glowing Ping behind.
+      // Glow keeps following the hero's night amount, so it meets the room's glow without a jump
+      // and is 0 again before the hand-off.
+      releaseBubble(boopLine);
+      if (getAnchor() !== "room") setAnchor("room");
+      writeDots({ ...HERO_REST, glow: hn });
+      return;
+    }
 
-    const heroNight = desktop ? clamp01((stage.get().heroProgress - HERO_NIGHT_FROM) / (1 - HERO_NIGHT_FROM)) : 0;
-    const n = Math.max(heroNight, enter.value) * (1 - exit.value);
+    const n = Math.max(hn, enter.value) * (1 - exit.value);
     paintBody(bgAt(n), fgAt(n));
     setNight(n >= 0.5);
 
@@ -204,8 +230,18 @@ function build(room: HTMLElement, desktop: boolean, boopLine: string): () => voi
       c.value = Math.abs(d) < SNAP ? c.target : c.value + d * k;
       moved = true;
     }
-    if (moved || dirty) sync();
+    if (moved || dirty || stage.get().heroProgress !== lastHero) sync();
   });
+
+  // Any ScrollTrigger.refresh() (resize, zoom, the hero's rebuild, a matchMedia flip) re-renders
+  // every invalidateOnRefresh animation at its old progress: revert().invalidate(), then
+  // totalProgress(prev). Past the pin that is the hero's colour tween at 1, so body gets inline
+  // night (--bg/--fg) again while the hero's own data-room state doesn't change. The channels
+  // don't move on a refresh, so the tick wouldn't notice. Re-assert the whole state here instead.
+  // "refresh" is dispatched at the end of the refresh, synchronously, so no frame of night paints.
+  // paintBody compares against the inline values, so it rewrites exactly what the hero overwrote.
+  const onRefresh = () => sync();
+  ScrollTrigger.addEventListener("refresh", onRefresh);
 
   // A reload or deep link may start anywhere: begin at the scroll position, not at 0.
   channels.forEach((c) => (c.value = c.target));
@@ -213,6 +249,7 @@ function build(room: HTMLElement, desktop: boolean, boopLine: string): () => voi
 
   return () => {
     off();
+    ScrollTrigger.removeEventListener("refresh", onRefresh);
     triggers.forEach((t) => t.kill());
     seq?.kill();
     window.removeEventListener("contact:success", onSent);
