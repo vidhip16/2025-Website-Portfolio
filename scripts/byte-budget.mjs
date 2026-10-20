@@ -112,6 +112,10 @@ if (exists(pingSrc)) {
 const heroCritical = pingBytes == null ? null : gz(Buffer.from(html)) + css + preloadedFonts + pingBytes;
 
 const sizeOf = (p) => (exists(p) ? fs.statSync(p).size : null);
+const gazeBytes = () => {
+  const files = ["eyes-blank.webp", "eyes-blink.webp", "eyes-happy.webp", "pupil-l.webp", "pupil-r.webp"].map((f) => `public/ping/${f}`);
+  return files.every(exists) ? files.reduce((s, f) => s + fs.statSync(f).size, 0) : null;
+};
 
 const rows = [
   ["Initial JS (gz)", initialJs, 170 * KB],
@@ -120,8 +124,9 @@ const rows = [
   ["CSS (gz)", css, 25 * KB],
   ["Fonts (Latin)", fonts, 160 * KB],
   ["Hero critical bytes", heroCritical, 300 * KB],
-  ["Eye atlas desktop", sizeOf("public/ping/eyes.webp"), 600 * KB],
-  ["Eye atlas mobile", sizeOf("public/ping/eyes-m.webp"), 180 * KB],
+  // Procedural gaze (DECISIONS 21) replaces the 600/180 KB atlas: all overlay
+  // sprites together must stay under the mobile atlas budget.
+  ["Gaze overlay sprites", gazeBytes(), 180 * KB],
 ];
 
 let failed = false;

@@ -1,0 +1,85 @@
+{
+  "v": 2,
+  "mode": "procedural",
+  "stepDeg": 5,
+  "dir": "cw",
+  "box": {
+    "w": 929,
+    "h": 1520
+  },
+  "strip": {
+    "x": 3.7675,
+    "y": 38.8158,
+    "w": 79.7632,
+    "h": 16.5789
+  },
+  "stripPx": {
+    "w": 741,
+    "h": 252
+  },
+  "eyeMid": [
+    43.7368,
+    47.1526
+  ],
+  "eyeR": 0.05798,
+  "ellipse": [
+    0.02236,
+    0.02645
+  ],
+  "eyes": [
+    {
+      "c": [
+        24.282,
+        47.1178
+      ],
+      "r": [
+        9.1948,
+        6.076
+      ],
+      "rot": 18.29,
+      "travel": [
+        3.7185,
+        2.7016
+      ],
+      "pupil": {
+        "w": 9.2573,
+        "h": 6.3816,
+        "off": [
+          0.0452,
+          0.0204
+        ]
+      }
+    },
+    {
+      "c": [
+        63.1916,
+        47.1875
+      ],
+      "r": [
+        9.0678,
+        5.9553
+      ],
+      "rot": 20.18,
+      "travel": [
+        3.5991,
+        2.5881
+      ],
+      "pupil": {
+        "w": 9.2573,
+        "h": 6.3816,
+        "off": [
+          0.1023,
+          0.0164
+        ]
+      }
+    }
+  ],
+  "sprites": {
+    "body": "/ping/ping-body.png",
+    "blank": "/ping/eyes-blank.webp",
+    "pupilL": "/ping/pupil-l.webp",
+    "pupilR": "/ping/pupil-r.webp",
+    "blink": "/ping/eyes-blink.webp",
+    "happy": "/ping/eyes-happy.webp"
+  }
+}
