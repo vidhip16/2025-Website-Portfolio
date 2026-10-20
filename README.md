@@ -2,7 +2,7 @@
 
 Source for [2025-website-portfolio.vercel.app](https://2025-website-portfolio.vercel.app): a bright one-room gallery of Vidhi's work, kept by Ping, a lilac plush bunny whose eyes follow your cursor.
 
-Built with Next.js 16 (App Router, Cache Components), React 19, Tailwind CSS 4, GSAP + Lenis, and three.js for the dot cloud.
+Built with Next.js 16 (App Router, Cache Components), React 19, Tailwind CSS 4, GSAP + Lenis, and a hand-rolled WebGL2 dot stage.
 
 ## Develop
 

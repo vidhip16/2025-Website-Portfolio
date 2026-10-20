@@ -69,8 +69,8 @@ const noModule = new Set(
 const allChunks = walk(path.join(DIST, "static/chunks"), ".js").filter((f) => !noModule.has(f));
 const allJs = allChunks.reduce((s, f) => s + gz(read(f)), 0);
 
-// Dots chunk: the lazy chunk that carries three.js.
-const dotsFiles = allChunks.filter((f) => /WebGLRenderer|ShaderMaterial/.test(read(f).toString()));
+// Dots chunk: the lazy chunk that carries the WebGL2 dot stage (components/dots).
+const dotsFiles = allChunks.filter((f) => /uPupilStart|#version 300 es/.test(read(f).toString()));
 const dotsChunk = dotsFiles.length ? dotsFiles.reduce((s, f) => s + gz(read(f)), 0) : null;
 const dotsInInitial = dotsFiles.some((f) => initialFiles.includes(f));
 
@@ -141,7 +141,7 @@ const report = rows.map(([name, value, limit]) => {
 });
 if (dotsInInitial) {
   failed = true;
-  report.push({ name: "three.js must not be in the initial bundle", bytes: null, limit: null, status: "FAIL" });
+  report.push({ name: "dot stage must not be in the initial bundle", bytes: null, limit: null, status: "FAIL" });
 }
 
 const fmt = (b) => (b == null ? "—" : `${(b / KB).toFixed(1)} KB`);
