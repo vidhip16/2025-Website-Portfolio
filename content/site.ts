@@ -189,6 +189,8 @@ export type Role = Verified & {
 
 export const experience = {
   heading: "Experience",
+  /** Year-range words, kept as words so screen readers read "2023 to present". */
+  dates: { to: "to", present: "present" },
   lanes: { study: "Study", work: "Work" },
   roles: [
     {
@@ -253,6 +255,7 @@ export const work = {
 } as const;
 
 export const contact = {
+  links: { linkedin: "LinkedIn", github: "GitHub" },
   heading: "Say hello.",
   lede: "Questions, roles, or a project you'd like a hand with.",
   form: {
@@ -262,11 +265,16 @@ export const contact = {
     submit: "Send message",
     pending: "Sending…",
     success: "Message sent. Pong! Vidhi will reply by email.",
+    /** Live counter text; {count} and {max} are replaced. */
+    counter: "{count} of {max} characters",
     errors: {
       name: "Add your name.",
       email: "Enter an email like name@example.com.",
       message: "Write at least 10 characters.",
       server: `Couldn't send right now. Try again, or email ${person.email} directly.`,
+      tooLarge: `That message is too long to send here. Shorten it, or email ${person.email} directly.`,
+      nameLong: "Keep your name to 80 characters or fewer.",
+      messageLong: "Keep your message to 4,000 characters or fewer.",
     },
   },
 } as const;
@@ -274,9 +282,11 @@ export const contact = {
 export const footer = {
   line: "The gallery never really closes.",
   vitalsPrefix: "This visit: page ready in",
+  vitalsInpPrefix: "clicks answered within",
 } as const;
 
 export const notFound = {
+  title: "Page not found",
   heading: "This page isn't on the wall.",
   back: "Back to the gallery",
 } as const;
