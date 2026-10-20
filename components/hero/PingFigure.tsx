@@ -23,6 +23,9 @@ export function PingFigure({ gaze }: { gaze: GazeData }) {
   return (
     <>
       <span className={`ping-shadow ${s.shadow}`} aria-hidden="true">
+        {/* fetchPriority too: React's server renderer preloads the first eager <img> it meets, and
+            that is this copy. Without the hint the shared preload goes out at Low priority and
+            dedupes the body's high-priority one (same srcSet and sizes). */}
         <Image
           src={body}
           width={w}
@@ -30,6 +33,7 @@ export function PingFigure({ gaze }: { gaze: GazeData }) {
           sizes={PING_SIZES}
           alt=""
           loading="eager"
+          fetchPriority="high"
           draggable={false}
           className={s.shadowImg}
         />
