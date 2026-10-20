@@ -101,8 +101,8 @@ test.describe("layout", () => {
     });
   });
 
-  // unblock: Phase 5
-  test.fixme("the projection room shows the dots canvas or the T0 halftones", async ({ page }) => {
+  // unblocked: Phase 5
+  test("the projection room shows the dots canvas or the T0 halftones", async ({ page }) => {
     // §12: WebKit asserts that either the dots canvas or the halftones are visible (chromium too).
     await gotoAndSettle(page, "/");
     await settleApp(page);

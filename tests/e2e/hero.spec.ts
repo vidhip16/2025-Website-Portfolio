@@ -204,8 +204,8 @@ test.describe("hero", () => {
     }
   });
 
-  // unblock: Phase 5
-  test.fixme("the hand-off frame lines up with the still (one frame either side of .48)", async ({ page }, info) => {
+  // unblocked: Phase 5
+  test("the hand-off frame lines up with the still (one frame either side of .48)", async ({ page }, info) => {
     // §5.2: screenshots either side of hero progress 0.48 differ by < 3% inside the Ping rect.
     await page.setViewportSize({ width: 1280, height: 800 });
     await gotoAndSettle(page, "/");

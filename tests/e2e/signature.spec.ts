@@ -95,8 +95,8 @@ test.describe("signature interactions", () => {
     expect(firstTime(samples, (g) => inRange(g.aim, 260, 280)), "aim reached 260–280° (up)").toBeLessThanOrEqual(250);
   });
 
-  // unblock: Phase 5
-  test.fixme("in every room chapter the cursor opens a hole and the dot pupils watch it", async ({ page }) => {
+  // unblocked: Phase 5
+  test("in every room chapter the cursor opens a hole and the dot pupils watch it", async ({ page }) => {
     test.slow();
     await gotoAndSettle(page, "/");
     await settleApp(page);
@@ -144,8 +144,8 @@ test.describe("signature interactions", () => {
     }
   });
 
-  // unblock: Phase 5
-  test.fixme("the dots reach shapes 2, 3 and 4 at the chapter midpoints", async ({ page }) => {
+  // unblocked: Phase 5
+  test("the dots reach shapes 2, 3 and 4 at the chapter midpoints", async ({ page }) => {
     await gotoAndSettle(page, "/");
     await settleApp(page);
     await expectProbe(page, "__dots");

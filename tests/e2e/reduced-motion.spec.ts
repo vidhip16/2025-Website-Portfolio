@@ -134,8 +134,8 @@ test.describe("reduced motion", () => {
     before.forEach((t, i) => expect(Math.abs(t - after[i]), `track ${i} moved`).toBeLessThanOrEqual(0.5));
   });
 
-  // unblock: Phase 5
-  test.fixme("the projection room shows static halftones, not the dots canvas", async ({ page }) => {
+  // unblocked: Phase 5
+  test("the projection room shows static halftones, not the dots canvas", async ({ page }) => {
     // §5.6: reduced motion → a static halftone per chapter, hard cuts, no morphs.
     await gotoAndSettle(page, "/");
     await settleApp(page);

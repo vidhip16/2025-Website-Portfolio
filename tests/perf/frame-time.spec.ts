@@ -136,7 +136,6 @@ test.describe("frame time @perf", () => {
       mergeEvidence(info, "perf/frame-time.json", "mobile-4x", run);
       // unblock: Phase 5 (the T1 dots tier lands then). The run and its evidence happen now;
       // delete the next line to enforce the budget.
-      test.fixme(true, "unblock: Phase 5");
       expect(run.p90, `mobile 4× p90 ${run.p90} ms (p95 ${run.p95}, max ${run.max})`).toBeLessThanOrEqual(20);
     });
   });

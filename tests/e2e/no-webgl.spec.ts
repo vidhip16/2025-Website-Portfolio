@@ -56,8 +56,8 @@ test.describe("no WebGL", () => {
     expect(errors, "uncaught errors with WebGL unavailable").toEqual([]);
   });
 
-  // unblock: Phase 5
-  test.fixme("the projection room falls back to T0 halftones", async ({ page }) => {
+  // unblocked: Phase 5
+  test("the projection room falls back to T0 halftones", async ({ page }) => {
     await gotoAndSettle(page, "/");
     await settleApp(page);
     for (const ch of chapters) {
