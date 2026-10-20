@@ -69,6 +69,9 @@
 .chapter {
   position: relative;
   z-index: 1;
+  /* The print's projector glow (.print::before) bleeds past the gutter; keep it
+     from widening the page (clip, unlike hidden, makes no scroll container). */
+  overflow-x: clip;
   min-height: 90svh;
   display: flex;
   flex-direction: column;
