@@ -32,7 +32,16 @@ export function WorkClient({ slugs }: { slugs: readonly string[] }) {
 
   useLayoutEffect(() => {
     const y = takeRestore();
-    if (y !== null) window.scrollTo({ top: y, behavior: "instant" });
+    if (y === null) return;
+    window.scrollTo({ top: y, behavior: "instant" });
+    // Lenis (when it runs) keeps its own scroll value and rewrites the native one on every tick
+    // while it smooths, so a wheel tick just before the route changed would undo the restore.
+    // Hand it the position too. Lazy, like every other lib/scroll consumer: first-load JS stays small.
+    import("@/lib/scroll")
+      .then((m) => m.scrollToTarget(y, true))
+      .catch(() => {
+        /* the native restore above already ran */
+      });
   }, []);
 
   useEffect(() => {

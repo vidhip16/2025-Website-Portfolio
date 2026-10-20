@@ -9,6 +9,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 let lenis: Lenis | null = null;
 let tick: ((time: number) => void) | null = null;
+let onPop: (() => void) | null = null;
 let nativeVel = 0;
 let lastY = 0;
 let lastT = 0;
@@ -48,16 +49,30 @@ export function startScroll(opts: { smooth: boolean }): void {
     return;
   }
   if (lenis) return;
-  lenis = new Lenis({ autoRaf: false, anchors: true });
+  // While Lenis smooths (about a second after the last wheel tick) it rewrites the native scroll
+  // position every tick and ignores native scroll events, so it overwrites Next's scroll-to-top on
+  // a client navigation and WorkClient's restore. `stopInertiaOnNavigate` resets it on a click to
+  // another pathname (tile links, the nav, "Back to the gallery"); popstate covers Back/Forward.
+  lenis = new Lenis({ autoRaf: false, anchors: true, stopInertiaOnNavigate: true });
   lenis.on("scroll", ScrollTrigger.update);
   tick = (time: number) => lenis?.raf(time * 1000);
   gsap.ticker.add(tick);
   gsap.ticker.lagSmoothing(0);
+  onPop = () => {
+    // Lenis' reset() is private; stop() then start() runs it twice through the public API: it drops
+    // the smoothing in flight and re-syncs to the native position. Skipped if someone stopped Lenis.
+    if (!lenis || lenis.isStopped) return;
+    lenis.stop();
+    lenis.start();
+  };
+  window.addEventListener("popstate", onPop);
 }
 
 export function stopScroll(): void {
   if (tick) gsap.ticker.remove(tick);
   tick = null;
+  if (onPop) window.removeEventListener("popstate", onPop);
+  onPop = null;
   lenis?.destroy();
   lenis = null;
 }
