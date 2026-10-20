@@ -290,8 +290,14 @@
   line-height: 1.25;
   letter-spacing: -0.012em;
 }
+/* The subtitle is hero.intro[0] alone (R1/og-A: semibold lead sentence + regular rest). Any further
+   verified intro line is supporting text at body size, so the subtitle keeps its two-sentence shape. */
 .intro + .intro {
-  margin-top: 0.5em;
+  margin-top: 0.9rem;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0;
 }
 .lead {
   font-weight: 650;

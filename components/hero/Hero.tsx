@@ -7,7 +7,11 @@ import s from "./hero.module.css";
 
 const gaze = gazeJson as GazeData;
 
-/** "First sentence. The rest" → ["First sentence.", " The rest"] (R1: the lead sentence is semibold). */
+/**
+ * "First sentence. The rest" → ["First sentence.", " The rest"]. R1: hero.intro[0] is the subtitle,
+ * its first sentence semibold ("IT student at York University.") and the rest regular. Later intro
+ * lines render as body-size supporting text (hero.module.css `.intro + .intro`).
+ */
 function splitLead(text: string): [string, string] {
   const m = /^(.+?[.!?])(\s.*)?$/s.exec(text);
   return m ? [m[1], m[2] ?? ""] : [text, ""];

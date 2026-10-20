@@ -7,6 +7,7 @@
 //   0 → .45   front clip and shadow → .3; hidden in one frame at HANDOFF_AT (.48)
 //   0 → .6    the copy (intro, status, links, wall label) fades out
 //   .5 → 1    body --bg paper → night, --fg ink → moon
+//   ≥ .75     body[data-room="night"], so the global focus ring turns lilac (orchid fails 3:1 on night)
 //   Every timeline update writes stage.heroProgress (the smoothed progress the visuals follow).
 // Anything else (below 1024 px, reduced motion, Pause): no ScrollTrigger at all. heroProgress is
 //   0 until Ping's top reaches the viewport top, then 1 (lib/stage contract).
@@ -32,6 +33,12 @@ const COPY_OUT = 0.6;
 const NIGHT = 0.5;
 /** On #home from HANDOFF_AT on (hero.module.css): front clip and shadow hidden, "Patel" whole. */
 const HANDOFF_ATTR = "data-handoff";
+/**
+ * From here on body carries data-room="night" (globals.css swaps --focus orchid → lilac under it).
+ * The colour tween's midpoint is where the two rings tie against the tweened --bg (≈ 1.7 : 1 each);
+ * any earlier or later switch leaves the worse of the two on screen for longer.
+ */
+const NIGHT_ROOM = NIGHT + (1 - NIGHT) / 2;
 
 const CONDITIONS = {
   desktop: DESKTOP_MQ,
@@ -53,11 +60,19 @@ export function startHeroScroll(section: HTMLElement): () => void {
 
   let pin: ScrollTrigger | null = null;
   let handoff = false;
+  let night = false;
 
   const setHandoff = (on: boolean) => {
     if (on === handoff) return;
     handoff = on;
     section.toggleAttribute(HANDOFF_ATTR, on);
+  };
+  /** Writes only on change. Phase 5's room uses the same body hook, so the values agree. */
+  const setNight = (on: boolean) => {
+    if (on === night) return;
+    night = on;
+    if (on) document.body.dataset.room = "night";
+    else delete document.body.dataset.room;
   };
 
   // ── Desktop: pin + scrub ─────────────────────────────────────────────
@@ -82,6 +97,7 @@ export function startHeroScroll(section: HTMLElement): () => void {
         const p = tl.progress();
         stage.set({ heroProgress: p });
         setHandoff(p >= HANDOFF_AT);
+        setNight(p >= NIGHT_ROOM);
       },
     });
 
@@ -103,6 +119,7 @@ export function startHeroScroll(section: HTMLElement): () => void {
       // The context reverts the timeline, its ScrollTrigger and every inline style it wrote.
       pin = null;
       setHandoff(false);
+      setNight(false);
       stage.set({ heroProgress: 0 });
     };
   };
@@ -195,6 +212,7 @@ export function startHeroScroll(section: HTMLElement): () => void {
     mm = null;
     pin = null;
     setHandoff(false);
+    setNight(false);
     stage.set({ heroProgress: 0, heroInView: false });
   };
 }
