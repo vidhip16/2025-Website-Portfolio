@@ -21,7 +21,8 @@
 //   body --bg/--fg   interpolate(paper → night) at n = max(heroNight, enter) × (1 − exit), where
 //                    heroNight follows the hero's own tween (heroProgress .5 → 1, desktop) so the two
 //                    writers always agree; body[data-room="night"] while n ≥ .5 (the tween midpoint,
-//                    as in the hero), so it is removed at the exit midpoint
+//                    as in the hero), so it is removed at the exit midpoint. Phones (< 1024 px):
+//                    body flips at n = .5 and a fixed veil's opacity carries the blend (paintPhone)
 //   stage.dots       room:    shape 1 + Σ morph_k, disperse 1, opacity 1 − exit, glow n
 //                    contact: shape 4 → 5 (then the success sequence), disperse 1, glow 0
 //   stage.anchor     "room" | "contact" (roomStage.ts; a sharedRequest until lib/stage declares it)
@@ -88,6 +89,42 @@ function build(room: HTMLElement, desktop: boolean, boopLine: string): () => voi
 
   const bgAt = gsap.utils.interpolate(token("--paper"), token("--night"));
   const fgAt = gsap.utils.interpolate(token("--ink"), token("--moon"));
+
+  // Phones: interpolating --bg/--fg on body every frame restyled and re-rastered the whole page on
+  // each frame of the scrub (gate 7: p90 33 ms at 4× CPU; 2 slow frames instead of ~57 with the
+  // colours held). So below 1024 px body flips paper ↔ night once, at n = .5, and a fixed veil
+  // under all content carries the gradual change on the compositor: below .5 a night veil at
+  // opacity n over paper, above it a paper veil at 1 − n over night. That is interpolate(paper,
+  // night, n) at every n. Text switches ink ↔ moon at the flip (DECISIONS 36).
+  const paper = token("--paper");
+  const nightColour = token("--night");
+  let veil: HTMLDivElement | null = null;
+  let veilColour = "";
+  let veilOpacity = "";
+  const setVeil = (colour: string, opacity: string) => {
+    if (!veil) return;
+    if (colour !== veilColour) veil.style.backgroundColor = veilColour = colour;
+    if (opacity !== veilOpacity) veil.style.opacity = veilOpacity = opacity;
+  };
+  const paintPhone = (n: number) => {
+    if (!veil) {
+      veil = document.createElement("div");
+      veil.setAttribute("aria-hidden", "true");
+      veil.dataset.roomVeil = "";
+      Object.assign(veil.style, {
+        position: "fixed",
+        inset: "0",
+        zIndex: "-1",
+        pointerEvents: "none",
+        willChange: "opacity",
+        contain: "strict",
+      });
+      document.body.prepend(veil);
+    }
+    const night = n >= 0.5;
+    paintBody(bgAt(night ? 1 : 0), fgAt(night ? 1 : 0));
+    setVeil(night ? paper : nightColour, (night ? 1 - n : n).toFixed(3));
+  };
 
   const channel = (): Channel => ({ target: 0, value: 0 });
   const enter = channel();
@@ -179,12 +216,14 @@ function build(room: HTMLElement, desktop: boolean, boopLine: string): () => voi
       // and is 0 again before the hand-off.
       releaseBubble(boopLine);
       if (getAnchor() !== "room") setAnchor("room");
+      setVeil(veilColour, "0");
       writeDots({ ...HERO_REST, glow: hn });
       return;
     }
 
     const n = Math.max(hn, enter.value) * (1 - exit.value);
-    paintBody(bgAt(n), fgAt(n));
+    if (desktop) paintBody(bgAt(n), fgAt(n));
+    else paintPhone(n);
     setNight(n >= 0.5);
 
     if (contactOn) {
@@ -239,6 +278,8 @@ function build(room: HTMLElement, desktop: boolean, boopLine: string): () => voi
     window.removeEventListener("contact:success", onSent);
     window.clearTimeout(boopTimer);
     releaseBubble(boopLine);
+    veil?.remove();
+    veil = null;
     releaseBody();
     if (getAnchor() !== "room") setAnchor("room");
     writeDots({ stream: 0 });

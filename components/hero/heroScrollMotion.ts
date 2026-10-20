@@ -126,19 +126,20 @@ export function startHeroScroll(section: HTMLElement): () => void {
 
   // ── Everything else: no ScrollTrigger, progress 0/1 ──────────────────
   const flowing = () => {
-    let raf = 0;
-    const measure = () => {
-      raf = 0;
-      stage.set({ heroProgress: figure.getBoundingClientRect().top <= 0 ? 1 : 0 });
-    };
-    const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(measure);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    measure();
+    // 1 once figure.ping's top has passed the viewport top. The observer's root is everything
+    // above that edge (a huge top margin, minus the whole viewport at the bottom), so
+    // "intersecting" is exactly "top < 0", and a jump (nav link, deep link) still flips it. No
+    // getBoundingClientRect per scroll frame: on phones that forced a layout every frame.
+    const io = new IntersectionObserver(
+      (entries) => {
+        const e = entries[entries.length - 1];
+        if (e) stage.set({ heroProgress: e.isIntersecting ? 1 : 0 });
+      },
+      { rootMargin: "100000px 0px -100% 0px" },
+    );
+    io.observe(figure);
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (raf) cancelAnimationFrame(raf);
+      io.disconnect();
       stage.set({ heroProgress: 0 });
     };
   };

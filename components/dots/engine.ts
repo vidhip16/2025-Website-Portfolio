@@ -350,10 +350,27 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
   let mobile = !desktopMq.matches;
   let roomAnchor: HTMLElement | null = null;
   let contactAnchor: HTMLElement | null = null;
+  // The room anchor is position: fixed, so its box only changes with the viewport. Measuring it
+  // every frame forced a full layout after the other tickers' style writes (≈ +16 ms a frame at
+  // 4× CPU on phones). It is re-read only when marked stale: resize, its own size, the room
+  // coming on screen.
+  let roomBox: BoxLike | null = null;
+  let roomBoxStale = true;
+  const roomRo = new ResizeObserver(() => {
+    roomBoxStale = true;
+  });
 
   const findAnchors = () => {
-    roomAnchor = document.querySelector<HTMLElement>('[data-dots-anchor="room"]');
-    contactAnchor = document.querySelector<HTMLElement>('[data-dots-anchor="contact"]');
+    const room = document.querySelector<HTMLElement>('[data-dots-anchor="room"]');
+    if (room !== roomAnchor) {
+      roomRo.disconnect();
+      if (room) roomRo.observe(room);
+      roomAnchor = room;
+    }
+    roomBoxStale = true;
+    // Below 1024 px the contact anchor is display: none (lg:block), so reading it every frame
+    // only forced a layout to learn it has no box. Phones fade the envelope out instead.
+    contactAnchor = mobile ? null : document.querySelector<HTMLElement>('[data-dots-anchor="contact"]');
   };
   const applySize = () => {
     viewW = canvas.clientWidth || window.innerWidth;
@@ -430,6 +447,7 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
       for (const e of entries) {
         const id = (e.target as HTMLElement).id as keyof typeof inView;
         if (id in inView) inView[id] = e.isIntersecting;
+        if (id === "about" && e.isIntersecting) roomBoxStale = true;
       }
       if (!inView.contact) successAt = null;
       updateRunning();
@@ -517,6 +535,13 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
     if (!el) return null;
     const r = el.getBoundingClientRect();
     return r.width > 1 && r.height > 1 ? r : null;
+  };
+  const roomRect = (): BoxLike | null => {
+    if (roomBoxStale) {
+      roomBox = readRect(roomAnchor);
+      roomBoxStale = false;
+    }
+    return roomBox;
   };
 
   // A NaN box part would send every dot of that shape to NaN: write a neutral value instead.
@@ -606,7 +631,7 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
     if (figBox) Object.assign(rect0, rectOf(figBox));
     else if (!(rect0.w > 1)) Object.assign(rect0, shapeRect(roomRegion(viewW, viewH, mobile), t.aspects[0], 1, false));
     writeRect(0, rect0);
-    const region = roomRegion(viewW, viewH, mobile, inView.about ? readRect(roomAnchor) : null);
+    const region = roomRegion(viewW, viewH, mobile, inView.about ? roomRect() : null);
     for (let k = 1; k <= 4; k++) writeRect(k, shapeRect(region, t.aspects[k], t.scales[k], k === 1));
     const contact = inView.contact || successAt !== null ? contactRegion(readRect(contactAnchor)) : null;
     writeRect(5, contact ? shapeRect(contact, t.aspects[5], t.scales[5], false) : shapeRects[4]);
@@ -761,6 +786,7 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
     removeTick?.();
     removeTick = null;
     io.disconnect();
+    roomRo.disconnect();
     document.removeEventListener("visibilitychange", onVisibility);
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerdown", onDown);

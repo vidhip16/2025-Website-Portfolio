@@ -315,6 +315,9 @@ export function startMosaicMotion(section: HTMLElement): () => void {
     wake();
   };
   const onPointerMove = (e: PointerEvent) => {
+    // The pupils and the bubble follow a cursor. A finger scrolling the page isn't one, and
+    // letting it wake pupilStep measured the peek SVGs (a forced layout) every frame of the scroll.
+    if (e.pointerType === "touch") return;
     pointer.x = e.clientX;
     pointer.y = e.clientY;
     pointer.seen = true;
