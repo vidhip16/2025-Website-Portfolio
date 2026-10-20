@@ -96,6 +96,9 @@ const TAP_PX = 12;
 
 const COARSE_MQ = "(hover: none), (pointer: coarse)";
 
+/** On figure.ping while this stage has its still hidden (opacity 0); hero.module.css reads it. */
+const STILL_HIDDEN = "data-still-hidden";
+
 /** A tier the governor dropped stays dropped for the page's life (Activity re-mounts included). */
 let tierFloor: PointTier | null = null;
 
@@ -178,6 +181,7 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
   // Safety net: a stage that hid the still and never got to restore it (it only ever writes
   // opacity 0 there) must not leave Ping, the hero's LCP image, invisible on a re-shown route.
   getPingFigure()?.style.removeProperty("opacity");
+  getPingFigure()?.removeAttribute(STILL_HIDDEN);
 
   let disposed = false;
   /** Cancels this stage's in-flight target sampling (first load and the T2 → T1 reload). */
@@ -493,6 +497,7 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
   let hiddenFigure: HTMLElement | null = null;
   const showStill = () => {
     hiddenFigure?.style.removeProperty("opacity");
+    hiddenFigure?.removeAttribute(STILL_HIDDEN);
     hiddenFigure = null;
   };
   const hideStill = (el: HTMLElement | null) => {
@@ -500,6 +505,9 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
     showStill();
     hiddenFigure = el;
     el?.style.setProperty("opacity", "0");
+    // hero.module.css takes the boop and look-around buttons out of the tab order and out of reach
+    // while the still is invisible: a focus ring on an invisible control fails WCAG 2.4.7.
+    el?.setAttribute(STILL_HIDDEN, "");
   };
 
   /**

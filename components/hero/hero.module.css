@@ -264,6 +264,14 @@
   outline-offset: 6px;
   border-radius: 42%;
 }
+/* While the dot stage has the still hidden (it sets data-still-hidden on the figure together with
+   its inline opacity 0), the boop overlay and the look-around toggle would stay tabbable and
+   pressable with no visible ring (WCAG 2.4.7), and a boop's bubble sits inside the same figure.
+   Out of the tab order and out of reach until the still returns. Not keyed to .hero[data-handoff]:
+   the pinned hero sets that without hiding the still when the dots are not running (T0). */
+.ping[data-still-hidden] :is(.boop, button) {
+  visibility: hidden;
+}
 
 /* ── z5: copy ────────────────────────────────────────────────────────── */
 .copy {
