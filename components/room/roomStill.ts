@@ -12,7 +12,7 @@
 // "contact:success" cuts straight to shape 1 with mascot.boopLine in the bubble.
 // Below the hero the room's body colours are re-asserted whenever someone else repaints body. This
 // also runs while ambient motion is on, when the roomMotion chunk failed to load. The hero is then
-// pinned, and every ScrollTrigger refresh re-renders its colour tween at p = 1, which is night.
+// pinned, and every ScrollTrigger refresh re-renders its timeline at p = 1, which re-asserts night.
 // Dependency-free (RoomScroll imports it statically). Cleanup undoes every write and is safe to re-run.
 import {
   getAnchor,

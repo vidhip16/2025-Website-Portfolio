@@ -6,8 +6,9 @@
 //   0 → .45   "Vidhi" xPercent −14, both .name-patel +14, h1 → .3, Ping and shadow scale 1.06
 //   0 → .45   front clip and shadow → .3; hidden in one frame at HANDOFF_AT (.48)
 //   0 → .6    the copy (intro, status, links, wall label) fades out
-//   .5 → 1    body --bg paper → night, --fg ink → moon
-//   ≥ .75     body[data-room="night"], so the global focus ring turns lilac (orchid fails 3:1 on night)
+//   ≥ .75     the page goes night: body paper + ink → night + moon in a short time-based fade
+//             (components/room/palette.ts, never scrubbed: a scrubbed mix rests mid-way under 4.5 : 1
+//             text contrast), and body[data-room="night"], so the global focus ring turns lilac
 //   Every timeline update writes stage.heroProgress (the smoothed progress the visuals follow).
 // Anything else (below 1024 px, reduced motion, Pause): no ScrollTrigger at all. heroProgress is
 //   0 until Ping's top reaches the viewport top, then 1 (lib/stage contract).
@@ -22,6 +23,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { fromFlatY, registerHeroPin, toFlatY } from "@/lib/heroPin";
 import { DESKTOP_MQ, getMotionPrefs, subscribeMotion } from "@/lib/motion";
 import { HANDOFF_AT, stage } from "@/lib/stage";
+import { acquirePalette } from "@/components/room/palette";
 
 /** Pin length as a fraction of the viewport height. */
 const PIN = 1.4;
@@ -32,14 +34,14 @@ const DIM = 0.3;
 const GROW = 1.06;
 /** The copy is gone by this progress. */
 const COPY_OUT = 0.6;
-/** NIGHT → 1: the room goes dark. */
+/** NIGHT → 1: the room goes dark (heroNight in components/room/roomShared.ts runs over the same span). */
 const NIGHT = 0.5;
 /** On #home from HANDOFF_AT on (hero.module.css): front clip and shadow hidden, "Patel" whole. */
 const HANDOFF_ATTR = "data-handoff";
 /**
- * From here on body carries data-room="night" (globals.css swaps --focus orchid → lilac under it).
- * The colour tween's midpoint is where the two rings tie against the tweened --bg (≈ 1.7 : 1 each);
- * any earlier or later switch leaves the worse of the two on screen for longer.
+ * From here on the page is night: the palette fades to night + moon and body carries
+ * data-room="night" (globals.css swaps --focus orchid → lilac under it). The midpoint of NIGHT → 1,
+ * so it is heroNight(p) ≥ NIGHT_AT in components/room, which the room uses for the same switch.
  */
 const NIGHT_ROOM = NIGHT + (1 - NIGHT) / 2;
 
@@ -101,8 +103,7 @@ export function startHeroScroll(section: HTMLElement): () => void {
 
   // ── Desktop: pin + scrub ─────────────────────────────────────────────
   const pinned = () => {
-    const root = getComputedStyle(document.documentElement);
-    const token = (name: string) => root.getPropertyValue(name).trim();
+    const palette = acquirePalette(false);
 
     const tl = gsap.timeline({
       defaults: { ease: "none", duration: SPLIT },
@@ -121,7 +122,9 @@ export function startHeroScroll(section: HTMLElement): () => void {
         const p = tl.progress();
         stage.set({ heroProgress: p });
         setHandoff(p >= HANDOFF_AT);
-        setNight(p >= NIGHT_ROOM);
+        const dark = p >= NIGHT_ROOM;
+        setNight(dark);
+        palette.set(dark);
       },
     });
 
@@ -131,17 +134,14 @@ export function startHeroScroll(section: HTMLElement): () => void {
       .to([front, shadow], { opacity: DIM }, 0)
       .to([figure, shadow], { scale: GROW }, 0)
       .to(copy, { opacity: 0, duration: COPY_OUT }, 0)
-      .fromTo(
-        document.body,
-        { "--bg": token("--paper"), "--fg": token("--ink") },
-        { "--bg": token("--night"), "--fg": token("--moon"), duration: 1 - NIGHT, immediateRender: false },
-        NIGHT,
-      );
+      // The timeline is 1 long, so tl.progress() is the hero progress (the palette is not scrubbed).
+      .set({}, {}, 1);
 
     pin = tl.scrollTrigger ?? null;
     return () => {
       // The context reverts the timeline, its ScrollTrigger and every inline style it wrote.
       pin = null;
+      palette.release();
       setHandoff(false);
       setNight(false);
       stage.set({ heroProgress: 0 });
