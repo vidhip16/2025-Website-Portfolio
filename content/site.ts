@@ -50,8 +50,6 @@ export const person = {
   lastName: "Patel",
   jobTitle: "Junior IT Associate",
   location: "Toronto, ON",
-  // TODO(vidhi): confirm the canonical email (checklist #1). The old site
-  // displayed this address; its mailto pointed at a different one.
   email: "vidhipat2005@gmail.com",
   github: "https://github.com/vidhip16",
   linkedin: "https://www.linkedin.com/in/vidhi-patel-717256309/",
@@ -78,7 +76,10 @@ export const hero = {
       verified: true,
     },
     { text: "I build small tools that do one job well.", verified: true },
-    // TODO(vidhi): a line about the job duties, once supplied (checklist #3).
+    {
+      text: "Information Technology student at York University interested in IT support, systems administration, and data analytics.",
+      verified: true,
+    },
   ] satisfies Line[],
   status: {
     text: "Currently: Junior IT Associate at Metro Compactor Service Inc., Toronto.",
@@ -97,14 +98,12 @@ export const about = {
       text: "I'm studying Information Technology at York University and working as a Junior IT Associate. I like the unglamorous parts of tech: tools that save someone ten minutes and systems that just work. Outside work I make music and film, play competitive games, and automate things that probably didn't need automating.",
       verified: true,
     },
-    // TODO(vidhi): onboarding-documentation clause (checklist #13).
   ] satisfies Line[],
   photo: {
     src: "/about/vidhi-octo-zone.jpg",
     width: 1200,
     height: 1600,
     alt: "Vidhi at The Octo Zone arcade, holding a white plush bunny under neon pink and blue light",
-    // TODO(vidhi): add the location only if Vidhi wants it (checklist #12).
     caption: `Vidhi at The Octo Zone, with ${mascot.inspiredBy}.`,
   },
 } as const;
@@ -212,9 +211,9 @@ export const experience = {
       title: "B.A. Information Technology",
       org: "York University",
       start: 2023,
-      end: null, // TODO(vidhi): expected graduation date (checklist #8)
+      end: null,
       description:
-        "Coursework in programming, systems analysis, networks, and user-focused design. Focused on building software, databases, and websites that solve real-world problems.",
+        "Coursework in programming, systems analysis, networks, and user-focused design. Focused on building software, databases, and websites that solve real-world problems. Expected graduation: April 2027.",
       verified: true,
     },
     {
@@ -223,8 +222,7 @@ export const experience = {
       title: "Intern",
       org: "Vortex Freight Systems",
       start: 2023,
-      end: 2026, // TODO(vidhi): co-op or part-time? (checklist #4)
-      // TODO(vidhi): two lines on the role (checklist #3)
+      end: 2026,
       verified: true,
     },
     {
@@ -235,7 +233,6 @@ export const experience = {
       start: 2026,
       end: null,
       current: true,
-      // TODO(vidhi): two lines on the role (checklist #3)
       verified: true,
     },
   ] satisfies Role[],
