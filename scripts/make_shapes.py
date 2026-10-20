@@ -93,9 +93,14 @@ def main() -> None:
         "terminal": (glyph_svg(departure_ttf(), ">_", 0.1, 0.70), [[0.40, 0.30], [0.60, 0.30]]),
         "envelope": (envelope_svg(), [[0.42, 0.62], [0.58, 0.62]]),
     }
+    # A pre-sized sampling copy (600 px tall, alpha intact) so the dot stage
+    # never downloads the 1.78 MB body PNG and the fallback draw is 1:1.
+    body = Image.open(ROOT / "public/ping/ping-body.png").convert("RGBA")
+    h = 600
+    body.resize((round(body.width * h / body.height), h), Image.LANCZOS).save(OUT / "ping-body-600.png", optimize=True)
     manifest = {
-        "ping-hero": {"src": "/ping/ping-body.png", "eyes": "gaze.json"},
-        "ping-seat": {"src": "/ping/ping-body.png", "eyes": "gaze.json", "scale": 0.6},
+        "ping-hero": {"src": "/dots/ping-body-600.png", "eyes": "gaze.json"},
+        "ping-seat": {"src": "/dots/ping-body-600.png", "eyes": "gaze.json", "scale": 0.6},
     }
     total = 0
     for name, (svg, eyes) in shapes.items():

@@ -9,11 +9,11 @@
   ],
   "shapes": {
     "ping-hero": {
-      "src": "/ping/ping-body.png",
+      "src": "/dots/ping-body-600.png",
       "eyes": "gaze.json"
     },
     "ping-seat": {
-      "src": "/ping/ping-body.png",
+      "src": "/dots/ping-body-600.png",
       "eyes": "gaze.json",
       "scale": 0.6
     },
