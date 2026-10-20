@@ -148,8 +148,8 @@ test.describe("reduced motion", () => {
     }
   });
 
-  // unblock: Phase 4
-  test.fixme("the gaze still follows the pointer, snapping", async ({ page, baseURL }) => {
+  // unblocked: Phase 4
+  test("the gaze still follows the pointer, snapping", async ({ page, baseURL }) => {
     // §4.5: user-driven gaze keeps working under reduced motion, with no easing.
     skipUnlessQaBuild(baseURL);
     await gotoAndSettle(page, "/");

@@ -162,8 +162,8 @@ test.describe("hero", () => {
     [1440, 900],
     [1920, 1080],
   ] as const) {
-    // unblock: Phase 4
-    test.fixme(`Ping covers at most 30% of each name word at ${width}px`, async ({ page }, info) => {
+    // unblocked: Phase 4
+    test(`Ping covers at most 30% of each name word at ${width}px`, async ({ page }, info) => {
       await page.setViewportSize({ width, height });
       await gotoAndSettle(page, "/");
       await expect(page.locator(`${SEL.pingFigure} img`).first()).toBeVisible();
@@ -178,8 +178,8 @@ test.describe("hero", () => {
     });
   }
 
-  // unblock: Phase 4
-  test.fixme("at hero progress .3 the real and duplicate Patel lines match within 1px", async ({ page }) => {
+  // unblocked: Phase 4
+  test("at hero progress .3 the real and duplicate Patel lines match within 1px", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 }); // the pin runs at ≥ 1024 px
     await gotoAndSettle(page, "/");
     await settleApp(page);

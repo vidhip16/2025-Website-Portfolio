@@ -5,6 +5,21 @@ import { PROJECTS } from "./helpers";
 // Chromium only. Uses the request fixture (baseURL + extraHTTPHeaders from the config).
 
 /** Width and height from a PNG's IHDR chunk. */
+/** Width/height from a baseline or progressive JPEG's SOF segment. */
+function jpegSize(buf: Buffer): { width: number; height: number } {
+  let i = 2;
+  while (i < buf.length) {
+    if (buf[i] !== 0xff) { i++; continue; }
+    const marker = buf[i + 1];
+    const len = buf.readUInt16BE(i + 2);
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      return { height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
+    }
+    i += 2 + len;
+  }
+  return { width: 0, height: 0 };
+}
+
 function pngSize(buf: Buffer): { width: number; height: number } | null {
   const sig = "89504e470d0a1a0a";
   if (buf.length < 24 || buf.subarray(0, 8).toString("hex") !== sig) return null;
@@ -51,21 +66,26 @@ test.describe("head kit", () => {
     for (const t of ["Person", "WebSite", "ProfilePage"]) expect([...types]).toContain(t);
   });
 
-  // unblock: Phase 6
-  test.fixme("icons return 200", async ({ request }) => {
+  // unblocked: Phase 6
+  test("icons return 200", async ({ request }) => {
     for (const path of ["/icon.svg", "/apple-icon.png"]) {
       expect((await request.get(path)).status(), path).toBe(200);
     }
   });
 
-  // unblock: Phase 6
-  test.fixme("OG images are 1200×630 PNGs and each og:image matches its route", async ({ page, request }) => {
-    const routes = [{ path: "/", og: "/opengraph-image" }, ...PROJECTS.map((p) => ({ path: `/work/${p.slug}`, og: `/work/${p.slug}/opengraph-image` }))];
+  // unblocked: Phase 6
+  // The home card is a static JPEG render (DECISIONS 26); project cards are ImageResponse PNGs.
+  test("OG images are 1200×630 and each og:image matches its route", async ({ page, request }) => {
+    const routes = [
+      { path: "/", og: "/opengraph-image.jpg", type: "image/jpeg" },
+      ...PROJECTS.map((p) => ({ path: `/work/${p.slug}`, og: `/work/${p.slug}/opengraph-image`, type: "image/png" })),
+    ];
     for (const r of routes) {
       const res = await request.get(r.og);
       expect(res.status(), r.og).toBe(200);
-      expect(res.headers()["content-type"]).toContain("image/png");
-      expect(pngSize(await res.body()), r.og).toEqual({ width: 1200, height: 630 });
+      expect(res.headers()["content-type"]).toContain(r.type);
+      const body = await res.body();
+      expect(r.type === "image/png" ? pngSize(body) : jpegSize(body), r.og).toEqual({ width: 1200, height: 630 });
 
       await page.goto(r.path);
       const content = await page.locator('meta[property="og:image"]').first().getAttribute("content");

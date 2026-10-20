@@ -33,8 +33,8 @@ async function dotEyes(page: Page, fallback: { x: number; y: number }) {
 test.describe("signature interactions", () => {
   test.beforeEach(({ baseURL }) => skipUnlessQaBuild(baseURL));
 
-  // unblock: Phase 4
-  test.fixme("at the hero the wheel aims the gaze down then up, with a squash", async ({ page }) => {
+  // unblocked: Phase 4
+  test("at the hero the wheel aims the gaze down then up, with a squash", async ({ page }) => {
     await gotoAndSettle(page, "/");
     await settleApp(page);
     await expectProbe(page, "__gaze");
@@ -59,8 +59,8 @@ test.describe("signature interactions", () => {
     expect(firstTime(samples, (g) => inRange(g.aim, 260, 280)), "aim reached 260–280° (up)").toBeLessThanOrEqual(250);
   });
 
-  // unblock: Phase 4
-  test.fixme("a touch swipe aims the gaze the same way @touch", async ({ page, browserName }) => {
+  // unblocked: Phase 4
+  test("a touch swipe aims the gaze the same way @touch", async ({ page, browserName }) => {
     // CDP synthesizeScrollGesture produces a real touch scroll; Chromium only (mobile-chromium project).
     test.skip(browserName !== "chromium", "touch scroll gestures need CDP");
     const cdp = await page.context().newCDPSession(page);
