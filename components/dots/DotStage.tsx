@@ -7,8 +7,8 @@ import { startDotStage } from "./engine";
 
 /**
  * The WebGL dot stage (blueprint §5). Lazy: DotStageLoader reaches it through
- * `dynamic(() => import("./DotStage"), { ssr: false })`, so three.js only ever ships in this
- * chunk. Renders nothing itself: the engine prepends `canvas[data-dots]` to <body> and the
+ * `dynamic(() => import("./DotStage"), { ssr: false })`, so the WebGL2 engine (engine.ts, gl.ts)
+ * only ever ships in this chunk. Renders nothing itself: the engine prepends `canvas[data-dots]` to <body> and the
  * effect's cleanup removes every trace of it (Activity hides re-run it).
  */
 export default function DotStage({

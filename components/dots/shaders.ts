@@ -1,9 +1,11 @@
-// Dot-stage shaders (blueprint §5.2, §5.3), GLSL ES 3.00 for a RawShaderMaterial on WebGL2.
+// Dot-stage shaders (blueprint §5.2, §5.3), GLSL ES 3.00 for WebGL2. components/dots/gl.ts compiles
+// them exactly as written: each source carries its own #version line (it must be the first line)
+// and precision.
 //
 // Every point j reads its target in shape s from one RGBA32F texture (lib/dots/types.ts): texel
 // s·n + j = (x, y, z, colour index) in centred box space. uRects[s] places shape s on screen
-// (CSS px, y down; the camera is (0, vw, 0, vh)). Everything else is stateless per frame: the CPU
-// only moves uniforms.
+// (CSS px, y down; uProjection is the camera (0, vw, 0, vh, −1000, 1000)). Everything else is
+// stateless per frame: the CPU only moves uniforms.
 //
 // Output is premultiplied (blend One, OneMinusSrcAlpha). Writing alpha a gives normal blending;
 // writing alpha 0 with the same colour gives additive. uNight slides body dots from one to the
@@ -13,7 +15,7 @@
 /** Texture width (lib/dots/types.ts TEX_WIDTH); the shader indexes with a shift. */
 export const SHADER_TEX_WIDTH = 1024;
 
-export const vertexShader = /* glsl */ `
+export const vertexShader = /* glsl */ `#version 300 es
 precision highp float;
 precision highp int;
 precision highp sampler2D;
@@ -30,8 +32,9 @@ precision highp sampler2D;
 #define GAIN_PING 0.9
 #define GAIN_ICON 0.55
 
-uniform mat4 projectionMatrix;
-uniform mat4 modelViewMatrix;
+// CSS px (y down) → clip space: gl.ts cssCamera(vw, vh). The view and model transforms are the
+// identity (camera at the origin, points untransformed), so this is the whole transform.
+uniform mat4 uProjection;
 
 uniform sampler2D uTargets;   // RGBA32F: x, y, z (centred box space) + colour index
 uniform sampler2D uRanks;     // R32F: density rank 0..1 (glow ramp)
@@ -198,11 +201,11 @@ void main() {
   float size = pupil ? uSize * PUPIL_SIZE : uSize;
   float cover = s0 == 0 ? 1.0 - k : 0.0;
   gl_PointSize = mix(size, max(size, uCover), cover) * uDpr;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, z, 1.0);
+  gl_Position = uProjection * vec4(p, z, 1.0);
 }
 `;
 
-export const fragmentShader = /* glsl */ `
+export const fragmentShader = /* glsl */ `#version 300 es
 precision highp float;
 
 uniform float uNight;

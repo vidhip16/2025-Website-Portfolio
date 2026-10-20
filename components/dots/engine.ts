@@ -1,32 +1,13 @@
 // The WebGL dot stage (blueprint §5.2–§5.5, PHASE5 "Workstream D"). DotStage.tsx starts it in an
 // effect and the returned function tears everything down (Activity-safe: safe to re-run).
 //
-// three 0.186.1 core only (named imports, no addons). One `Points` draw with a RawShaderMaterial
-// (components/dots/shaders.ts); every point reads its targets from the packed float texture that
-// lib/dots/targets builds. The renderer only READS lib/stage (heroProgress, dots, look) and writes
-// nothing but `handoff`. The frame runs on the shared gsap ticker (lib/ticker, loaded with import()
-// so GSAP and Lenis never land in this chunk); "pausing" removes the tick, the equivalent of
-// setAnimationLoop(null) for a stage that shares the page's one loop.
-import {
-  AddEquation,
-  BufferAttribute,
-  BufferGeometry,
-  CustomBlending,
-  DataTexture,
-  FloatType,
-  GLSL3,
-  NearestFilter,
-  OneFactor,
-  OneMinusSrcAlphaFactor,
-  OrthographicCamera,
-  Points,
-  RawShaderMaterial,
-  RedFormat,
-  RGBAFormat,
-  Scene,
-  Texture,
-  WebGLRenderer,
-} from "three";
+// Plain WebGL2 through components/dots/gl.ts (no three.js: §8 "all JS after a full scroll"). One
+// POINTS draw with the program from components/dots/shaders.ts; every point reads its targets from
+// the packed float texture that lib/dots/targets builds. The renderer only READS lib/stage
+// (heroProgress, dots, look) and writes nothing but `handoff`. The frame runs on the shared gsap
+// ticker (lib/ticker, loaded with import() so GSAP and Lenis never land in this chunk); "pausing"
+// removes the tick, the equivalent of setAnimationLoop(null) for a stage that shares the page's one
+// loop.
 import gaze from "@/content/gaze.json";
 import shapes from "@/public/dots/shapes.json";
 import { loadTargets, mulberry32, TIER_POINTS, type DotTargets, type PointTier } from "@/lib/dots/targets";
@@ -66,9 +47,33 @@ import {
   type BoxLike,
   type Rect,
 } from "./layout";
+import {
+  bindTexture,
+  clear,
+  createContext,
+  createFloatTexture,
+  createImageTexture,
+  createPoints,
+  createProgram,
+  cssCamera,
+  deletePoints,
+  drawPoints,
+  initState,
+  loseContext,
+  resize,
+  type GL,
+  type PointBuffer,
+  type Program,
+} from "./gl";
 import { fragmentShader, vertexShader } from "./shaders";
 
 const QA = process.env.NEXT_PUBLIC_QA === "1";
+const DEV = process.env.NODE_ENV !== "production";
+
+/** Attribute location of `position` (bound before the link). */
+const POSITION = 0;
+/** Texture units: the targets, the density ranks, the Ping still. */
+const UNIT = { targets: 0, ranks: 1, ping: 2 } as const;
 
 /** DPR cap per tier (§5.5). */
 const DPR_CAP: Record<PointTier, number> = { T2: 1.75, T1: 1.5 };
@@ -131,14 +136,18 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 /** GPU-side resources for one target set (rebuilt when the governor drops T2 → T1). */
 type Gpu = {
   targets: DotTargets;
-  geometry: BufferGeometry;
-  targetTex: DataTexture;
-  rankTex: DataTexture;
+  /** `position` per point: (index j, rnd, rnd2). */
+  points: PointBuffer;
+  /** RGBA32F targets (lib/dots/types.ts layout). */
+  targetTex: WebGLTexture;
+  /** R32F density ranks, same layout. */
+  rankTex: WebGLTexture;
   /** Share of shape 0's box its silhouette covers (sets the hand-off dot size). */
   occ0: number;
 };
 
-function buildGpu(t: DotTargets): Gpu {
+/** Uploads one target set now (idle time, right after sampling), not in the hand-off frame. */
+function buildGpu(gl: GL, t: DotTargets): Gpu {
   const attr = new Float32Array(t.n * 3);
   const rnd = mulberry32(0x5eed + t.n);
   for (let j = 0; j < t.n; j++) {
@@ -146,25 +155,18 @@ function buildGpu(t: DotTargets): Gpu {
     attr[j * 3 + 1] = rnd();
     attr[j * 3 + 2] = rnd();
   }
-  const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new BufferAttribute(attr, 3));
-
-  const targetTex = new DataTexture(t.data, t.width, t.height, RGBAFormat, FloatType);
+  const points = createPoints(gl, POSITION, attr, 3);
+  const targetTex = createFloatTexture(gl, t.data, t.width, t.height, "rgba32f");
   const ranks = densityRanks(t.data, t.n, t.k, t.pupilStart, t.width * t.height);
-  const rankTex = new DataTexture(ranks, t.width, t.height, RedFormat, FloatType);
-  for (const tex of [targetTex, rankTex]) {
-    tex.minFilter = NearestFilter;
-    tex.magFilter = NearestFilter;
-    tex.generateMipmaps = false;
-    tex.needsUpdate = true;
-  }
-  return { targets: t, geometry, targetTex, rankTex, occ0: occupancy(t.data, t.n, 0, t.pupilStart, t.scales[0]) };
+  const rankTex = createFloatTexture(gl, ranks, t.width, t.height, "r32f");
+  return { targets: t, points, targetTex, rankTex, occ0: occupancy(t.data, t.n, 0, t.pupilStart, t.scales[0]) };
 }
 
-function disposeGpu(g: Gpu) {
-  g.geometry.dispose();
-  g.targetTex.dispose();
-  g.rankTex.dispose();
+/** Frees one target set's buffer and textures (the context lives on). */
+function disposeGpu(gl: GL, g: Gpu) {
+  deletePoints(gl, g.points);
+  gl.deleteTexture(g.targetTex);
+  gl.deleteTexture(g.rankTex);
 }
 
 /** loadTargets' options plus the cancel signal lib/dots is asked to honour (terminate the worker). */
@@ -206,39 +208,28 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
   cs.opacity = "0";
   document.body.prepend(canvas);
 
-  const gl = canvas.getContext("webgl2", {
-    alpha: true,
-    antialias: false,
-    depth: false,
-    stencil: false,
-    premultipliedAlpha: true,
-    powerPreference: "high-performance",
-  });
+  const context = createContext(canvas);
   const fail = (reason: TierReason) => {
     if (disposed) return;
     dispose();
     onFallback(reason);
   };
-  if (!gl) {
+  if (!context) {
     canvas.remove();
     disposed = true;
     queueMicrotask(() => onFallback("no-webgl2"));
     return () => {};
   }
+  const gl: GL = context;
 
-  let renderer: WebGLRenderer;
+  // The program compiles from here on (in parallel where the driver can); its link status and
+  // uniforms are read once the targets are in, or at the latest in the first visible frame.
+  let program: Program;
   try {
-    renderer = new WebGLRenderer({
-      canvas,
-      context: gl,
-      alpha: true,
-      antialias: false,
-      depth: false,
-      stencil: false,
-      premultipliedAlpha: true,
-      powerPreference: "high-performance",
-    });
+    program = createProgram(gl, vertexShader, fragmentShader, { position: POSITION });
+    initState(gl);
   } catch {
+    loseContext(gl);
     canvas.remove();
     disposed = true;
     queueMicrotask(() => onFallback("no-webgl2"));
@@ -246,10 +237,8 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
   }
   const maxPoint = Number((gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE) as Float32Array | null)?.[1]) || 64;
 
-  // ── Scene ────────────────────────────────────────────────────────────────
-  const scene = new Scene();
-  const camera = new OrthographicCamera(0, 1, 0, 1, -1000, 1000);
-  camera.position.z = 0;
+  // ── Camera: CSS px, y down, (0, vw, 0, vh, −1000, 1000) ─────────────────
+  const projection = new Float32Array(16);
 
   const root = getComputedStyle(document.documentElement);
   const lilac = token(root, "--lilac");
@@ -265,87 +254,94 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
   const pupilOff = new Float32Array(2);
   const pupilOff0 = new Float32Array(2);
   const viewU = new Float32Array(2);
-  const uniforms = {
-    uTargets: { value: null as DataTexture | null },
-    uRanks: { value: null as DataTexture | null },
-    uPing: { value: null as Texture | null },
-    uN: { value: 0 },
-    uPupilStart: { value: 0 },
-    uRects: { value: rects },
-    uScales: { value: scales },
-    uShape: { value: 0 },
-    uDisperse: { value: 0 },
-    uTime: { value: 0 },
-    uShimmer: { value: SHIMMER_PX },
-    uMouse: { value: mouse },
-    uHoleR: { value: 0 },
-    uRipple: { value: ripple },
-    uPupil: { value: pupilOff },
-    uPupil0: { value: pupilOff0 },
-    uSize: { value: baseSize },
-    uCover: { value: baseSize },
-    uDpr: { value: 1 },
-    uOpacity: { value: 1 },
-    uGlow: { value: 0 },
-    uNight: { value: 0 },
-    uStreamT: { value: -1 },
-    uReformT: { value: 99 },
-    uView: { value: viewU },
+  // Uniform values, uploaded in every rendered frame (each setter skips a value that didn't change).
+  const ints = { uN: 0, uPupilStart: 0 };
+  const floats = {
+    uShape: 0,
+    uDisperse: 0,
+    uTime: 0,
+    uShimmer: SHIMMER_PX,
+    uHoleR: 0,
+    uSize: baseSize,
+    uCover: baseSize,
+    uDpr: 1,
+    uOpacity: 1,
+    uGlow: 0,
+    uNight: 0,
+    uStreamT: -1,
+    uReformT: 99,
+  };
+  const vectors = {
+    uProjection: projection,
+    uRects: rects,
+    uScales: scales,
+    uMouse: mouse,
+    uRipple: ripple,
+    uPupil: pupilOff,
+    uPupil0: pupilOff0,
+    uView: viewU,
     // Icon body: a deeper lilac that reads on paper, plain lilac (added light) on night.
-    uBody: { value: new Float32Array([...mixRgb(lilac, orchid, 0.35), ...lilac]) },
-    uHigh: { value: new Float32Array([...bubblegum, ...glowC]) },
+    uBody: new Float32Array([...mixRgb(lilac, orchid, 0.35), ...lilac]),
+    uHigh: new Float32Array([...bubblegum, ...glowC]),
     // Pupil cores: ink on paper (and always inside Ping's white eye domes), glow on night for the
     // icons; pupils always blend normally (shaders.ts colourOf).
-    uEye: { value: new Float32Array([...ink, ...glowC]) },
-    uRamp: { value: new Float32Array([...lilac, ...bubblegum, ...glowC]) },
+    uEye: new Float32Array([...ink, ...glowC]),
+    uRamp: new Float32Array([...lilac, ...bubblegum, ...glowC]),
   };
-  const material = new RawShaderMaterial({
-    uniforms,
-    vertexShader,
-    fragmentShader,
-    glslVersion: GLSL3,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false,
-    blending: CustomBlending,
-    blendEquation: AddEquation,
-    blendSrc: OneFactor,
-    blendDst: OneMinusSrcAlphaFactor,
-    blendSrcAlpha: OneFactor,
-    blendDstAlpha: OneMinusSrcAlphaFactor,
-  });
+  const intNames = Object.keys(ints) as (keyof typeof ints)[];
+  const floatNames = Object.keys(floats) as (keyof typeof floats)[];
+  const vectorNames = Object.keys(vectors) as (keyof typeof vectors)[];
 
   let gpu: Gpu | null = null;
-  let points: Points | null = null;
-  let pingTex: Texture | null = null;
+  let pingTex: WebGLTexture | null = null;
   let addTickFn: ((fn: () => void) => () => void) | null = null;
   let scrollVelocity: () => number = () => 0;
+
+  /**
+   * The link check and uniform lookup, once (it blocks only if the driver is still compiling).
+   * False while the stage can't draw: a lost context (whose event fails the stage) or a program
+   * that didn't link, which drops to T0 the way a missing WebGL2 does.
+   */
+  const linked = (): boolean => {
+    try {
+      return program.link();
+    } catch (err) {
+      if (DEV) console.error(err);
+      fail("no-webgl2");
+      return false;
+    }
+  };
 
   const install = (g: Gpu) => {
     const old = gpu;
     gpu = g;
     const t = g.targets;
-    uniforms.uTargets.value = g.targetTex;
-    uniforms.uRanks.value = g.rankTex;
-    uniforms.uN.value = t.n;
-    uniforms.uPupilStart.value = t.pupilStart;
+    ints.uN = t.n;
+    ints.uPupilStart = t.pupilStart;
     for (let k = 0; k < 6; k++) scales[k] = t.scales[k] ?? 1;
-    if (points) {
-      points.geometry = g.geometry;
-    } else {
-      points = new Points(g.geometry, material);
-      points.frustumCulled = false;
-      scene.add(points);
-    }
-    if (old) disposeGpu(old);
+    if (old) disposeGpu(gl, old);
     applySize();
-    // Upload the textures and compile the program now, while idle, not in the hand-off frame.
-    renderer.initTexture(g.targetTex);
-    renderer.initTexture(g.rankTex);
-    if (pingTex) renderer.initTexture(pingTex);
-    renderer.compileAsync(scene, camera).catch(() => {
-      /* compiled on first render instead */
-    });
+    // The textures went up in buildGpu. Finish the program now too, while idle, not in the hand-off
+    // frame (unless the driver is still compiling it in parallel: the first draw waits for it then).
+    if (program.ready()) linked();
+  };
+
+  /** One frame, as three's renderer.render(scene, camera) drew it (autoClear first). False if nothing was drawn. */
+  const render = (g: Gpu): boolean => {
+    clear(gl);
+    if (!linked()) return false;
+    program.use();
+    bindTexture(gl, UNIT.targets, g.targetTex);
+    bindTexture(gl, UNIT.ranks, g.rankTex);
+    bindTexture(gl, UNIT.ping, pingTex);
+    program.setInt("uTargets", UNIT.targets);
+    program.setInt("uRanks", UNIT.ranks);
+    program.setInt("uPing", UNIT.ping);
+    for (const k of intNames) program.setInt(k, ints[k]);
+    for (const k of floatNames) program.setFloat(k, floats[k]);
+    for (const k of vectorNames) program.setVector(k, vectors[k]);
+    drawPoints(gl, g.points);
+    return true;
   };
 
   // ── Viewport ─────────────────────────────────────────────────────────────
@@ -362,16 +358,11 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
   const applySize = () => {
     viewW = canvas.clientWidth || window.innerWidth;
     viewH = canvas.clientHeight || window.innerHeight;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, DPR_CAP[tier]));
-    renderer.setSize(viewW, viewH, false);
-    camera.left = 0;
-    camera.right = viewW;
-    camera.top = 0;
-    camera.bottom = viewH;
-    camera.updateProjectionMatrix();
-    const dpr = renderer.getPixelRatio();
-    uniforms.uDpr.value = dpr;
-    uniforms.uSize.value = Math.min(baseSize, maxPoint / dpr);
+    const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP[tier]);
+    resize(gl, viewW, viewH, dpr);
+    cssCamera(viewW, viewH, projection);
+    floats.uDpr = dpr;
+    floats.uSize = Math.min(baseSize, maxPoint / dpr);
     viewU[0] = viewW;
     viewU[1] = viewH;
     mobile = !desktopMq.matches;
@@ -528,7 +519,7 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
     return r.width > 1 && r.height > 1 ? r : null;
   };
 
-  // (three uploads a flat Float32Array as-is only while its first value is a number, never NaN.)
+  // A NaN box part would send every dot of that shape to NaN: write a neutral value instead.
   const finite = (v: number, fallback: number) => (Number.isFinite(v) ? v : fallback);
   const writeRect = (k: number, r: Rect) => {
     shapeRects[k] = r;
@@ -549,7 +540,7 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
           if (disposed) return;
           tier = "T1";
           probe.tier = "T1";
-          install(buildGpu(t));
+          install(buildGpu(gl, t));
           governor.reset();
         },
         (err: unknown) => {
@@ -688,27 +679,27 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
     const nightTarget = document.body.dataset.room === "night" && disperse >= 0.999 ? 1 : 0;
     night += (nightTarget - night) * (1 - Math.exp(-dt / NIGHT_TAU));
 
-    uniforms.uShape.value = shape;
-    uniforms.uDisperse.value = disperse;
-    uniforms.uTime.value = now / 1000;
-    uniforms.uHoleR.value = holeR;
-    uniforms.uOpacity.value = opacity;
-    uniforms.uGlow.value = clamp01(st.dots.glow);
-    uniforms.uNight.value = night;
-    uniforms.uStreamT.value = streamT;
-    uniforms.uReformT.value = reformT;
-    uniforms.uCover.value = Math.min(
+    floats.uShape = shape;
+    floats.uDisperse = disperse;
+    floats.uTime = now / 1000;
+    floats.uHoleR = holeR;
+    floats.uOpacity = opacity;
+    floats.uGlow = clamp01(st.dots.glow);
+    floats.uNight = night;
+    floats.uStreamT = streamT;
+    floats.uReformT = reformT;
+    floats.uCover = Math.min(
       coverSize(gpu.occ0, rect0.w, rect0.h, t.pupilStart, baseSize, COVER_MAX),
-      maxPoint / uniforms.uDpr.value,
+      maxPoint / floats.uDpr,
     );
 
     if (visible) {
-      renderer.render(scene, camera);
+      if (!render(gpu)) return; // lost context (its event fails the stage) or already failed
       drewVisible = true;
       if (renderedLast && governor.push(rawDt)) dropTier();
       renderedLast = true;
     } else {
-      if (drewVisible) renderer.clear();
+      if (drewVisible) clear(gl);
       drewVisible = false;
       renderedLast = false;
     }
@@ -739,7 +730,7 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
       removeTick();
       removeTick = null;
       // Nothing may linger on the fixed canvas while the stage sleeps.
-      if (drewVisible) renderer.clear();
+      if (drewVisible) clear(gl);
       drewVisible = false;
     }
   }
@@ -749,14 +740,8 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
   Promise.all([sample(TIER_POINTS[tier]), loadImage(pingSrc), import("@/lib/ticker"), import("@/lib/scroll")]).then(
     ([targets, img, ticker, scroll]) => {
       if (disposed) return;
-      pingTex = new Texture(img);
-      pingTex.flipY = false;
-      pingTex.minFilter = NearestFilter;
-      pingTex.magFilter = NearestFilter;
-      pingTex.generateMipmaps = false;
-      pingTex.needsUpdate = true;
-      uniforms.uPing.value = pingTex;
-      install(buildGpu(targets));
+      pingTex = createImageTexture(gl, img);
+      install(buildGpu(gl, targets));
       addTickFn = ticker.addTick;
       scrollVelocity = scroll.getScrollVelocity;
       updateRunning();
@@ -790,13 +775,12 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
     if (handedOff) setHandoff(false);
     showStill();
     releaseHandoffAttr();
-    if (points) scene.remove(points);
-    if (gpu) disposeGpu(gpu);
+    if (gpu) disposeGpu(gl, gpu);
     gpu = null;
-    pingTex?.dispose();
-    material.dispose();
-    renderer.dispose();
-    renderer.forceContextLoss();
+    if (pingTex) gl.deleteTexture(pingTex);
+    pingTex = null;
+    program.dispose();
+    loseContext(gl); // final teardown only: a T2 → T1 swap keeps the context
     canvas.remove();
     if (QA && window.__dots === probe) delete window.__dots;
   }
