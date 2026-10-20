@@ -1,0 +1,129 @@
+"""Build the "vp" monogram (blueprint §1.5).
+
+Real "v" and "p" outlines from Instrument Serif (Revision R1,
+assets/fonts/InstrumentSerif-Regular.ttf) via fontTools SVGPathPen, plus Ping's folded ear
+rising above the x-height from the top of the "p" stem (a lowercase p has no
+ascender, so the ear is an addition). Writes components/shell/monogram-paths.ts
+(path data + viewBox for the inline SVG) and refs/monogram.svg for review.
+
+Usage: python3 scripts/make_monogram.py
+"""
+from pathlib import Path
+
+from fontTools.pens.boundsPen import BoundsPen
+from fontTools.pens.recordingPen import DecomposingRecordingPen
+from fontTools.pens.svgPathPen import SVGPathPen
+from fontTools.pens.transformPen import TransformPen
+from fontTools.ttLib import TTFont
+
+ROOT = Path(__file__).resolve().parent.parent
+FONT = "assets/fonts/InstrumentSerif-Regular.ttf"
+KERN = -0.015  # em between v and p
+TOP = 0.75  # em of headroom above the baseline for the ear (y-up)
+TALL = 1.3  # ear height multiplier (long bunny ear)
+
+
+def glyph_path(gs, name, dx, top):
+    pen = SVGPathPen(gs)
+    rec = DecomposingRecordingPen(gs)
+    gs[name].draw(rec)
+    # font units are y-up; SVG is y-down: y' = TOP - y
+    rec.replay(TransformPen(pen, (1, 0, 0, -1, dx, top)))
+    return pen.getCommands()
+
+
+def stem_span(gs, name, upm):
+    """x-extent of the p's descender stem, measured on a horizontal slice below the baseline."""
+    from fontTools.pens.basePen import BasePen
+
+    class Slice(BasePen):
+        def __init__(self, gs, y):
+            super().__init__(gs)
+            self.y, self.xs, self.cur = y, [], None
+
+        def _moveTo(self, p):
+            self.cur = self.start = p
+
+        def _lineTo(self, p):
+            (x0, y0), (x1, y1) = self.cur, p
+            if (y0 - self.y) * (y1 - self.y) < 0:
+                self.xs.append(x0 + (self.y - y0) * (x1 - x0) / (y1 - y0))
+            self.cur = p
+
+        def _curveToOne(self, p1, p2, p3):
+            p0 = self.cur
+            for i in range(1, 25):
+                t = i / 24
+                x = (1 - t) ** 3 * p0[0] + 3 * (1 - t) ** 2 * t * p1[0] + 3 * (1 - t) * t * t * p2[0] + t ** 3 * p3[0]
+                y = (1 - t) ** 3 * p0[1] + 3 * (1 - t) ** 2 * t * p1[1] + 3 * (1 - t) * t * t * p2[1] + t ** 3 * p3[1]
+                self._lineTo((x, y))
+
+        def _qCurveToOne(self, p1, p2):
+            p0 = self.cur
+            for i in range(1, 25):
+                t = i / 24
+                x = (1 - t) ** 2 * p0[0] + 2 * (1 - t) * t * p1[0] + t * t * p2[0]
+                y = (1 - t) ** 2 * p0[1] + 2 * (1 - t) * t * p1[1] + t * t * p2[1]
+                self._lineTo((x, y))
+
+        def _closePath(self):
+            if self.cur != self.start:
+                self._lineTo(self.start)
+
+    s = Slice(gs, -upm * 0.1)
+    gs[name].draw(s)
+    xs = sorted(s.xs)
+    return xs[0], xs[1]
+
+
+def main():
+    f = TTFont(ROOT / FONT)
+    gs, cmap = f.getGlyphSet(), f.getBestCmap()
+    upm = f["head"].unitsPerEm
+    k = upm / 2000  # the ear was drawn on a 2000-unit em
+    top_u = TOP * upm
+    v, p = cmap[ord("v")], cmap[ord("p")]
+    vb, pb = BoundsPen(gs), BoundsPen(gs)
+    gs[v].draw(vb)
+    gs[p].draw(pb)
+    px = gs[v].width + KERN * upm
+    d = glyph_path(gs, v, 0, top_u) + glyph_path(gs, p, px, top_u)
+
+    s0, s1 = stem_span(gs, p, upm)
+    # The ear is sized from the em (a thin serif stem would make it a sliver).
+    sw = max(s1 - s0, 0.13 * upm)
+    # Centre the ear just left of the stem so it rises from the stem, not the bowl.
+    cx = px + (s0 + s1) / 2 - 0.30 * sw
+    xh = pb.bounds[3]  # top of the p (x-height overshoot)
+    y = lambda fy: top_u - fy
+    # Ear: rises from the stem top, leans slightly left, then the tip folds over to the right.
+    base = xh - 120 * k
+    ear = (
+        f"M{cx - sw * 0.50:.1f} {y(base):.1f}"
+        f"C{cx - sw * 0.58:.1f} {y(base + 300 * k * TALL):.1f} {cx - sw * 0.62:.1f} {y(base + 640 * k * TALL):.1f} {cx - sw * 0.30:.1f} {y(base + 830 * k * TALL):.1f}"
+        f"C{cx - sw * 0.02:.1f} {y(base + 990 * k * TALL):.1f} {cx + sw * 0.62:.1f} {y(base + 960 * k * TALL):.1f} {cx + sw * 0.98:.1f} {y(base + 800 * k * TALL):.1f}"
+        f"C{cx + sw * 1.32:.1f} {y(base + 650 * k * TALL):.1f} {cx + sw * 1.42:.1f} {y(base + 480 * k * TALL):.1f} {cx + sw * 1.22:.1f} {y(base + 430 * k * TALL):.1f}"
+        f"C{cx + sw * 1.02:.1f} {y(base + 390 * k * TALL):.1f} {cx + sw * 0.86:.1f} {y(base + 560 * k * TALL):.1f} {cx + sw * 0.62:.1f} {y(base + 600 * k * TALL):.1f}"
+        f"C{cx + sw * 0.50:.1f} {y(base + 610 * k * TALL):.1f} {cx + sw * 0.47:.1f} {y(base + 300 * k * TALL):.1f} {cx + sw * 0.50:.1f} {y(base):.1f}Z"
+    )
+    width = px + gs[p].width
+    top = y(base + 1000 * k * TALL)
+    bottom = y(pb.bounds[1])
+    pad = 20 * k
+    vbx = f"{-pad:.0f} {top - pad:.0f} {width + 2 * pad:.0f} {bottom - top + 2 * pad:.0f}"
+    (ROOT / "components/shell/monogram-paths.ts").write_text(
+        f"// Generated by scripts/make_monogram.py from {FONT}. Do not edit by hand.\n"
+        f'export const MONOGRAM_VIEWBOX = "{vbx}";\n'
+        f'export const MONOGRAM_LETTERS = "{d}";\n'
+        f'export const MONOGRAM_EAR = "{ear}";\n'
+    )
+    (ROOT / "refs").mkdir(exist_ok=True)
+    (ROOT / "refs/monogram.svg").write_text(
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{vbx}"><path fill="#23162E" d="{d}"/>'
+        f'<path fill="#B7A3F0" stroke="#23162E" stroke-width="{50 * k:.0f}" d="{ear}"/></svg>\n'
+    )
+    print("viewBox", vbx, "stem", round(s0), round(s1), "xh", xh)
+
+
+if __name__ == "__main__":
+    main()

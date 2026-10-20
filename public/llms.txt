@@ -1,0 +1,39 @@
+# Vidhi Patel
+
+> Vidhi Patel is an IT student at York University and a Junior IT Associate in Toronto who builds small, focused tools.
+
+Currently: Junior IT Associate at Metro Compactor Service Inc., Toronto.
+
+Experience:
+
+- Junior IT Associate, Metro Compactor Service Inc., 2026 to present
+- B.A. Information Technology, York University, 2023 to present: Coursework in programming, systems analysis, networks, and user-focused design. Focused on building software, databases, and websites that solve real-world problems.
+- Intern, Vortex Freight Systems, 2023 to 2026
+
+Skills, as grouped on the site:
+
+- Build: Python, JavaScript, TypeScript, React, Node/Express, Flask, HTML/CSS
+- Data and systems: SQL/PostgreSQL, REST APIs, Git/GitHub, OpenCV/Pillow, Networking coursework
+- Support: Troubleshooting, Documentation, Onboarding, Scripting and automation
+
+## Home page
+
+- [Home](https://2025-website-portfolio.vercel.app/#home): IT student at York University and Junior IT Associate in Toronto. I build small tools that do one job well.
+- [About](https://2025-website-portfolio.vercel.app/#about): I'm studying Information Technology at York University and working as a Junior IT Associate. I like the unglamorous parts of tech: tools that save someone ten minutes and systems that just work. Outside work I make music and film, play competitive games, and automate things that probably didn't need automating.
+- [Work](https://2025-website-portfolio.vercel.app/#work): Small tools that do one job well. Six projects, each built to solve one specific problem.
+- [Experience](https://2025-website-portfolio.vercel.app/#experience): B.A. Information Technology at York University, Intern at Vortex Freight Systems, and Junior IT Associate at Metro Compactor Service Inc.
+- [Contact](https://2025-website-portfolio.vercel.app/#contact): Say hello. Questions, roles, or a project you'd like a hand with.
+
+## Work
+
+- [HandleScout](https://2025-website-portfolio.vercel.app/work/handlescout): High-performance handle verification tool that checks real-time username availability across Instagram, TikTok, X, and YouTube. Responsive frontend with validation and optimized multi-platform API calls to streamline branding workflows.
+- [Type Racer](https://2025-website-portfolio.vercel.app/work/type-racer): Responsive typing game with live WPM tracking, DOM-based feedback, and animations. Selectable text lengths and real-time correctness highlighting.
+- [Nearest Washroom Finder](https://2025-website-portfolio.vercel.app/work/washroom-finder): Location-based app to find public washrooms within 1.5 km using Overpass API and device geolocation. Interactive map and mobile-friendly UI.
+- [Image Generator](https://2025-website-portfolio.vercel.app/work/image-generator): Full-stack AI image generator with prompt input, live preview, and downloads. Node/Express backend proxies OpenAI API with secure key management.
+- [Vertical Video Extender](https://2025-website-portfolio.vercel.app/work/video-extender): Transforms horizontal videos into vertical format by generating missing visual space. Flask/OpenCV backend with responsive UI and mobile preview.
+- [Picture Converter](https://2025-website-portfolio.vercel.app/work/picture-converter): Converts HEIC to JPG with batch folder support using Pillow/HEIF. Lightweight CLI utility for quick image prep and sharing.
+
+## Optional
+
+- [GitHub](https://github.com/vidhip16)
+- [LinkedIn](https://www.linkedin.com/in/vidhi-patel-717256309/)

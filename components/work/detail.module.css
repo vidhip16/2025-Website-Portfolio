@@ -1,0 +1,118 @@
+/* /work/[slug] hero (Revision R1: every surface gets depth, never a flat picture beside text).
+   Back to front, inside <main> (which is its own stacking context):
+     z0  .backdrop  grain plus the arcade, bubblegum and lilac glows (no fill: the page colour is body's)
+     z0  .plate     a tilted bubblegum card behind the print, peeking out to the right and below
+     z1  .mat       the print: a white mat with a soft cast shadow around the cover
+     z2  .title     on lg the title steps left, so its first letters run over the plate
+   The view-transition box ([data-detail-hero]) sits untouched inside .mat. Nothing above it is
+   transformed (only the plate, which is a sibling, is tilted), so the cover → hero morph pairs
+   exactly as before. Pure CSS Module: no @apply / theme() here (it is not run through Tailwind). */
+
+.hero {
+  --gap: clamp(32px, 6vw, 96px);
+  /* How far the plate peeks out to the right of the print. */
+  --reach: 2.5%;
+  --mat: clamp(8px, 1.1vw, 14px);
+  column-gap: var(--gap);
+}
+
+/* ── z0: grain and glows ─────────────────────────────────────────────── */
+.backdrop {
+  --halo-x: 50%;
+  --halo-y: 46%;
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 0;
+  height: min(100%, clamp(720px, 112svh, 1100px));
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 54% 40% at 0% 0%,
+      color-mix(in srgb, var(--arcade) 16%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 50% 46% at 100% 46%,
+      color-mix(in srgb, var(--bubblegum) 28%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 46% 36% at var(--halo-x) var(--halo-y),
+      color-mix(in srgb, var(--lilac) 26%, transparent),
+      color-mix(in srgb, var(--lilac) 9%, transparent) 55%,
+      transparent
+    );
+  /* Fade the grain and the glows out before the section ends, so there is no seam. */
+  mask-image: linear-gradient(to bottom, #000 62%, transparent);
+}
+
+/* ── z0 / z1: the hung print ─────────────────────────────────────────── */
+.print {
+  width: 100%;
+  max-width: calc(560px + 2 * var(--mat));
+}
+
+.frame {
+  position: relative;
+}
+
+.plate {
+  position: absolute;
+  z-index: 0;
+  inset: 5% calc(var(--reach) * -1) -3% 5%;
+  border-radius: calc(var(--radius-tile) + var(--mat));
+  background: color-mix(in srgb, var(--bubblegum) 62%, var(--paper));
+  transform: rotate(2.2deg);
+  pointer-events: none;
+}
+
+.mat {
+  position: relative;
+  z-index: 1;
+  padding: var(--mat);
+  border-radius: calc(var(--radius-tile) + var(--mat));
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgb(35 22 46 / 0.1),
+    0 20px 30px -14px rgb(35 22 46 / 0.22),
+    0 48px 72px -28px rgb(35 22 46 / 0.32);
+}
+
+/* R1 wall label: small italic serif under a 1.5px hairline rule at 25%. */
+.caption {
+  margin: 1.75rem 0 0 6%;
+  padding-top: 0.55rem;
+  max-width: 11rem;
+  border-top: 1.5px solid color-mix(in srgb, currentColor 25%, transparent);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.title {
+  position: relative;
+  z-index: 2;
+}
+
+@media (min-width: 1024px) {
+  .hero {
+    /* Stops 14px short of the text column, so only the title (not the copy) meets the plate. */
+    --reach: calc(var(--gap) - 14px);
+  }
+  .backdrop {
+    --halo-x: 28%;
+    --halo-y: 52%;
+  }
+  .title {
+    margin-left: calc(var(--gap) * -0.6);
+  }
+}
+
+/* ── Forced colours: drop the decoration, keep the picture and the words ─ */
+@media (forced-colors: active) {
+  .backdrop,
+  .plate {
+    display: none;
+  }
+}

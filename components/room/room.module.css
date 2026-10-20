@@ -1,0 +1,458 @@
+/* Projection room (#about). Blueprint §3.2, PHASE5 "Workstream R", Revision R1.
+
+   No background fill anywhere on #about: the night is body's --bg (the hero scrub starts the
+   paper → night tween, the room continues it and brings the lights back up on the way out), and the
+   dot canvas (fixed, z-index 0, behind main) has to show through. Every colour here derives from
+   currentColor (= body's --fg: moon on night, ink on paper), so the room is AA in both states,
+   including without JavaScript, where it simply stays on paper.
+
+   Back to front, inside the room's own stacking context:
+     z0  .atmos         grain, a projector beam and the light pool around the shape (transparent only)
+     z1  .chapter       the text column (gutter → 52vw on desktop): heading, lede, chips, the print
+     z2  .anchor        [data-dots-anchor="room"], the fixed box the renderer lays shapes 1–4 in:
+                        desktop a --shape square centred at 72vw / 50vh, phones the 42svh band under
+                        the nav. It carries the skill bubble.
+     z3  .contactLayer  the boop bubble, placed beside [data-dots-anchor="contact"] by DotBubble */
+
+.room {
+  /* The shape box (desktop). Its left edge stays clear of the 52vw text column at every width. */
+  --shape: min(34vw, 62vh);
+  /* The sticky band below 1024 px. */
+  --band: 42svh;
+  /* Plaster for the print's border: paper warmed with a little butter. */
+  --plaster: color-mix(in srgb, var(--paper) 88%, var(--butter));
+
+  position: relative;
+  isolation: isolate;
+  color: var(--fg);
+  /* The exit runway: the last 30vh, over which the dots fade and the lights come back up. */
+  padding-bottom: 30vh;
+}
+
+/* ── z0: atmosphere ───────────────────────────────────────────────────── */
+.atmos {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Rides at viewport height while the room is on screen: a pool of light where the shapes sit and a
+   faint beam from the projector in the top-right corner. */
+.beam {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  background:
+    radial-gradient(
+      ellipse calc(var(--shape) * 0.78) calc(var(--shape) * 0.72) at 72% 50%,
+      color-mix(in srgb, var(--lilac) 10%, transparent),
+      color-mix(in srgb, var(--lilac) 4%, transparent) 55%,
+      transparent 72%
+    ),
+    conic-gradient(
+      from 206deg at 100% 0%,
+      transparent 0deg,
+      color-mix(in srgb, var(--lilac) 3%, transparent) 6deg,
+      color-mix(in srgb, var(--lilac) 7%, transparent) 15deg,
+      color-mix(in srgb, var(--lilac) 3%, transparent) 24deg,
+      transparent 30deg
+    ),
+    radial-gradient(
+      ellipse 44% 40% at 0% 100%,
+      color-mix(in srgb, var(--arcade) 6%, transparent),
+      transparent 70%
+    );
+}
+
+/* ── z1: chapters ─────────────────────────────────────────────────────── */
+.chapter {
+  position: relative;
+  z-index: 1;
+  /* The print's projector glow (.print::before) bleeds past the gutter; keep it
+     from widening the page (clip, unlike hidden, makes no scroll container). */
+  overflow-x: clip;
+  min-height: 90svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(56px, 9svh, 112px) var(--gutter);
+}
+
+.copy {
+  position: relative;
+  /* Its own stacking context, so the numeral below sits over the phone card but under the text. */
+  isolation: isolate;
+  width: 100%;
+  max-width: 40rem;
+}
+
+/* The room number, drawn large and faint behind the heading like a gallery's room plate. Generated
+   content with empty alt text, so it is neither read out nor contrast-checked as text. */
+.copy::before {
+  content: attr(data-numeral);
+  content: attr(data-numeral) / "";
+  position: absolute;
+  z-index: -1;
+  top: -0.36em;
+  left: -0.05em;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: clamp(9rem, 19vw, 18rem);
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1px color-mix(in srgb, currentColor 15%, transparent);
+  pointer-events: none;
+  user-select: none;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2.75rem, 5.2vw, 5rem);
+  line-height: 0.92;
+  letter-spacing: -0.02em;
+}
+.chapter[data-chapter="about"] .title {
+  font-size: clamp(3.5rem, 8vw, 7.5rem);
+  line-height: 0.86;
+}
+
+/* R1 subtitle: Instrument Sans 500. */
+.lede {
+  margin: 1.1rem 0 0;
+  max-width: 34ch;
+  font-size: clamp(1.125rem, 1.35vw, 1.3rem);
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+/* ── About: bio and the headshot print ───────────────────────────────── */
+.aboutBody {
+  display: grid;
+  gap: 2.75rem;
+  margin-top: 1.75rem;
+}
+.bio p {
+  margin: 0;
+  max-width: 60ch;
+}
+.bio p + p {
+  margin-top: 1em;
+}
+
+.print {
+  position: relative;
+  justify-self: end;
+  width: min(62vw, 280px);
+  margin: 0.5rem 4% 0 0;
+}
+/* The projector's light spilling onto the wall around the print. */
+.print::before {
+  content: "";
+  position: absolute;
+  inset: -20% -34% -8%;
+  z-index: -1;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--lilac) 24%, transparent),
+    color-mix(in srgb, var(--lilac) 8%, transparent) 60%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+.frame {
+  position: relative;
+  rotate: -2deg;
+  padding: 10px;
+  background: var(--plaster);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.55),
+    0 2px 4px rgb(10 5 20 / 0.28),
+    0 28px 46px -20px rgb(10 5 20 / 0.62);
+}
+.frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+}
+/* A strip of tape holding the print to the wall. */
+.frame::after {
+  content: "";
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  width: 40%;
+  height: 24px;
+  translate: -50% 0;
+  rotate: 4deg;
+  background: color-mix(in srgb, var(--bubblegum) 56%, transparent);
+  box-shadow: 0 1px 2px rgb(10 5 20 / 0.2);
+  clip-path: polygon(
+    0 8%,
+    4% 0,
+    96% 4%,
+    100% 0,
+    98% 50%,
+    100% 100%,
+    3% 94%,
+    0 100%,
+    2% 50%
+  );
+}
+
+/* R1 wall label: small italic serif under a 1.5px hairline rule at 25%. */
+.caption {
+  margin: 1.15rem 0 0 6%;
+  padding-top: 0.55rem;
+  border-top: 1.5px solid color-mix(in srgb, currentColor 25%, transparent);
+  max-width: 26ch;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+/* ── Skill chips ──────────────────────────────────────────────────────── */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: 40rem;
+  margin: 1.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  min-height: 44px;
+  padding: 0.5rem 1.05rem;
+  border: 1.5px solid color-mix(in srgb, currentColor 36%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  color: inherit;
+  font-size: 1rem;
+  font-weight: 550;
+  line-height: 1.2;
+  text-decoration: none;
+  transition:
+    border-color 200ms var(--ease-quint),
+    background-color 200ms var(--ease-quint),
+    box-shadow 200ms var(--ease-quint);
+}
+/* Not a link: a stitched outline, nothing to click. */
+.chip[data-chip="plain"] {
+  border-style: dashed;
+  background: transparent;
+}
+.chip svg {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  opacity: 0.8;
+}
+/* Lit while the dots are looking at it (hover or focus), and on link hover. */
+a.chip:hover,
+.chip[data-lit] {
+  border-color: var(--lilac);
+  background: color-mix(in srgb, var(--lilac) 16%, transparent);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--lilac) 14%, transparent),
+    0 10px 26px -12px color-mix(in srgb, var(--lilac) 70%, transparent);
+  text-decoration: none;
+}
+/* The global ring squares its corners; keep the pill. Lilac on night comes from globals.css. */
+.chip:focus-visible {
+  border-radius: 999px;
+}
+
+/* ── z2: the room anchor (fixed) ─────────────────────────────────────── */
+.anchor {
+  position: fixed;
+  z-index: 2;
+  left: calc(72vw - var(--shape) / 2);
+  top: calc(50vh - var(--shape) / 2);
+  width: var(--shape);
+  height: var(--shape);
+  pointer-events: none;
+}
+
+/* The bubble's tail tip (a zero-size point); the bubble grows up and to the right of it. */
+.spot {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.anchor .spot {
+  left: 26%;
+  top: 6%;
+}
+
+/* ── z3: the contact bubble layer (positioned by DotBubble) ──────────── */
+.contactLayer {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* ── The bubble (Departure Mono, matches the hero's speech bubble) ───── */
+.bubble {
+  position: absolute;
+  left: -0.9em;
+  bottom: 0.62em;
+  display: flex;
+  align-items: center;
+  width: max-content;
+  max-width: min(22rem, 40vw);
+  padding: 0.5em 0.8em 0.45em;
+  border: 1.5px solid var(--ink);
+  border-radius: 0.85em;
+  background: var(--glow);
+  color: var(--ink);
+  font-size: clamp(0.95rem, 1.15vw, 1.15rem);
+  line-height: 1.15;
+  text-wrap: balance;
+  box-shadow:
+    0 0.5em 1.1em -0.55em rgb(35 22 46 / 0.45),
+    0 0 2.4em -0.4em color-mix(in srgb, var(--lilac) 70%, transparent);
+  transform-origin: 0.9em calc(100% + 0.62em);
+  opacity: 0;
+  scale: 0.6;
+  translate: 0 0.25em;
+  transition:
+    opacity 150ms ease-in,
+    scale 150ms ease-in,
+    translate 150ms ease-in;
+}
+.bubble[data-show="true"] {
+  opacity: 1;
+  scale: 1;
+  translate: 0 0;
+  transition-duration: 260ms;
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+:global(html[data-motion="off"]) .bubble {
+  transition: none;
+}
+.tail {
+  position: absolute;
+  left: 0.9em;
+  top: calc(100% - 1.5px);
+  width: 0.75em;
+  height: 0.68em;
+  overflow: visible;
+}
+.tail path {
+  fill: var(--glow);
+  stroke: var(--ink);
+}
+
+/* ── Desktop ──────────────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  /* The text column runs from the gutter to 52vw; the shapes own the right of the room. */
+  .copy {
+    width: calc(52vw - var(--gutter));
+    max-width: none;
+  }
+  .aboutBody {
+    grid-template-columns: minmax(0, 1fr) clamp(190px, 17vw, 300px);
+    align-items: start;
+    gap: clamp(28px, 3vw, 56px);
+  }
+  .print {
+    width: 100%;
+    margin: -0.75rem 0 0;
+  }
+}
+
+/* ── Phones and tablets: the sticky band ─────────────────────────────── */
+@media (max-width: 1023.98px) {
+  .beam {
+    background:
+      radial-gradient(
+        ellipse 70% calc(var(--band) * 0.62) at 50% calc(var(--nav-h) + var(--band) / 2),
+        color-mix(in srgb, var(--lilac) 11%, transparent),
+        transparent 72%
+      ),
+      radial-gradient(
+        ellipse 60% 36% at 0% 100%,
+        color-mix(in srgb, var(--arcade) 6%, transparent),
+        transparent 70%
+      );
+  }
+  /* The dots hold the band at the top; each chapter's copy starts below it and scrolls under it. */
+  .chapter {
+    justify-content: flex-start;
+    padding-top: calc(var(--nav-h) + var(--band) + 16px);
+  }
+  /* A projected slide card: dims the dots that pass behind the text. */
+  .copy {
+    padding: 22px clamp(16px, 5vw, 28px) 26px;
+    border-radius: var(--radius-card);
+    background: color-mix(in srgb, var(--bg) 76%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, currentColor 10%, transparent),
+      0 26px 50px -30px rgb(10 5 20 / 0.6);
+  }
+  .copy::before {
+    top: -0.2em;
+    left: auto;
+    right: 0.06em;
+    font-size: clamp(7rem, 34vw, 11rem);
+  }
+  .anchor {
+    left: 0;
+    top: var(--nav-h);
+    width: 100%;
+    height: var(--band);
+  }
+  .anchor .spot {
+    left: auto;
+    right: calc(var(--gutter) + min(46vw, 15rem));
+    top: 30%;
+  }
+  .bubble {
+    max-width: min(15rem, 46vw);
+  }
+}
+
+/* ── Forced colours ───────────────────────────────────────────────────── */
+@media (forced-colors: active) {
+  .atmos,
+  .copy::before,
+  .print::before,
+  .frame::after {
+    display: none;
+  }
+  .copy {
+    box-shadow: none;
+  }
+  .chip {
+    border-color: CanvasText;
+    forced-color-adjust: auto;
+  }
+  a.chip {
+    border-color: LinkText;
+    color: LinkText;
+  }
+  .bubble {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+  }
+  .tail path {
+    fill: Canvas;
+    stroke: CanvasText;
+  }
+}

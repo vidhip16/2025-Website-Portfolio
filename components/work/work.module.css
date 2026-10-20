@@ -1,0 +1,510 @@
+/* Work section: index, controls, mosaic (the set-piece) and list view.
+   Blueprint §3.3, §6. Tokens come from app/globals.css. */
+
+/* ── Section layout ───────────────────────────────────────────────────── */
+.section {
+  position: relative;
+  display: grid;
+  gap: clamp(40px, 6vw, 72px);
+  padding-block: clamp(72px, 12vw, 120px);
+}
+
+.intro {
+  padding-inline: var(--gutter);
+}
+
+.stage {
+  padding-inline: var(--gutter);
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .section {
+    grid-template-columns: minmax(0, 36fr) minmax(0, 60fr);
+    column-gap: 4%;
+    align-items: start;
+    padding-block: 0;
+    min-height: 100svh;
+  }
+  .intro {
+    position: sticky;
+    top: 0;
+    padding-inline: var(--gutter) 0;
+    padding-block: calc(var(--nav-h) + clamp(32px, 7vh, 88px)) 48px;
+  }
+  /* The wall bleeds off the right edge. */
+  .stage {
+    padding-inline: 0;
+  }
+}
+
+.heading {
+  font-size: clamp(3rem, 6vw, 6.5rem);
+  line-height: 0.92;
+  letter-spacing: -0.025em;
+  max-width: 11ch;
+}
+
+.lede {
+  margin-top: 1.25rem;
+  max-width: 34ch;
+}
+
+/* ── Index ────────────────────────────────────────────────────────────── */
+.index {
+  margin-top: clamp(28px, 4vh, 44px);
+  display: grid;
+  max-width: 26rem;
+  list-style: none;
+  padding: 0;
+}
+
+.indexLink {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding-block: 2px;
+  font-family: var(--font-display);
+  /* Instrument Serif has one weight (R1): size carries the emphasis. */
+  font-weight: 400;
+  font-size: clamp(1.4rem, 1.75vw, 1.85rem);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-decoration: none;
+  text-wrap: balance;
+}
+.indexLink:hover,
+.indexLink[data-active] {
+  color: var(--orchid);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+
+.controls {
+  margin-top: clamp(20px, 3vh, 32px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ── View switching (mosaic ⇄ list) ───────────────────────────────────────
+   html[data-work-view] is written by ViewToggle (and pre-paint by the boot
+   script once the lead adds it). Without a stored choice, reduced motion and
+   very narrow screens default to the list. */
+.list {
+  display: none;
+}
+:global(html[data-work-view="list"]) .mosaicWrap {
+  display: none;
+}
+:global(html[data-work-view="list"]) .list {
+  display: grid;
+}
+@media (prefers-reduced-motion: reduce), (max-width: 359.98px) {
+  :global(html:not([data-work-view="mosaic"])) .mosaicWrap {
+    display: none;
+  }
+  :global(html:not([data-work-view="mosaic"])) .list {
+    display: grid;
+  }
+}
+/* No JS: the boot script never ran, so html has no data-motion. Nothing can
+   pause the loop, seek a focused tile into the clipped frame or run the
+   toggles, so the list (§6.5) is the view, the toggles are hidden and the wall
+   is held still (see .track below; WCAG 2.2.2). Same idea as reduced motion,
+   minus the opt-in back to the mosaic. */
+:global(html:not([data-motion])) .mosaicWrap,
+:global(html:not([data-motion])) .controls {
+  display: none;
+}
+:global(html:not([data-motion])) .list {
+  display: grid;
+}
+
+/* ── Mosaic ───────────────────────────────────────────────────────────── */
+.mosaicWrap {
+  position: relative;
+  container-type: inline-size;
+}
+
+.mosaic {
+  --n: 2;
+  --gap: 14px;
+  --colw: calc((100cqi - (var(--n) - 1) * var(--gap)) / var(--n));
+  --cell: calc(var(--colw) * 1.25 + var(--gap));
+  /* Every column is lifted by the largest designed offset plus the parallax
+     travel, so the loop always covers the frame; the stagger between columns
+     (86 / -12 / 86 / -40 px) is unchanged. */
+  --lift: calc(86px + var(--cell) * 0.3);
+
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  column-gap: var(--gap);
+  align-items: start;
+  /* Never taller than the loop can fill. */
+  height: min(100svh, calc(var(--cell) * 3.4));
+  overflow: clip;
+  /* Room for focus rings on the outer columns. */
+  margin-inline: -6px;
+  padding-inline: 6px;
+}
+
+@media (min-width: 1024px) {
+  .mosaic {
+    --n: 3;
+    margin-inline-end: 0;
+    padding-inline-end: 0;
+  }
+}
+@media (min-width: 1600px) {
+  .mosaic {
+    --n: 4;
+  }
+}
+
+.col {
+  margin-top: calc(var(--off) - var(--lift));
+  min-width: 0;
+}
+.colLg,
+.col2xl {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .colLg {
+    display: block;
+  }
+}
+@media (min-width: 1600px) {
+  .col2xl {
+    display: block;
+  }
+}
+
+/* One loop per column. The controller only ever changes playbackRate and
+   currentTime on this animation (never play/pause/cancel). */
+.track {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  animation-name: loopY;
+  animation-duration: var(--dur);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-direction: var(--dir);
+  will-change: transform;
+}
+
+@keyframes loopY {
+  to {
+    transform: translate3d(0, calc(-50% - 7px), 0);
+  }
+}
+
+/* Touch: slower loop (the controller also halves the rate). */
+@media (hover: none) {
+  .track {
+    animation-duration: 60s;
+  }
+}
+/* Pause motion is known pre-paint: hold the loop until the lazy controller
+   takes over (it then eases playbackRate to 0 and back instead). */
+:global(html[data-motion="off"]) .mosaic:not([data-motion-ready]) .track {
+  animation-play-state: paused;
+}
+/* Reduced motion, or no JS at all: a static wall. Without JS nothing could
+   ever stop an infinite loop, so it never starts (WCAG 2.2.2), even though the
+   list hides the wall too. */
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    animation: none;
+  }
+}
+:global(html:not([data-motion])) .track {
+  animation: none;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+/* ── Cells ────────────────────────────────────────────────────────────── */
+.cell {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 5;
+  border-radius: var(--radius-tile);
+  overflow: hidden;
+  isolation: isolate;
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    transform 240ms var(--ease-quint),
+    opacity 240ms var(--ease-quint);
+}
+a.cell:focus-visible {
+  border-radius: var(--radius-tile);
+}
+
+.media {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  background: var(--lilac);
+}
+.media img {
+  object-fit: cover;
+}
+
+.caption {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  padding: 12px 16px 14px;
+  background: var(--paper);
+  color: var(--ink);
+  transform: translateY(101%);
+  transition: transform 280ms var(--ease-quint);
+}
+.capTitle {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.15rem, 1.4vw, 1.5rem);
+  line-height: 1.1;
+}
+.capTags {
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+/* Hover on a fine pointer, keyboard focus, or an index item pointing here. */
+@media (hover: hover) and (pointer: fine) {
+  a.cell:hover {
+    transform: scale(1.03);
+  }
+  a.cell:hover .caption {
+    transform: translateY(0);
+  }
+  .mosaic:has(a.cell:hover) .cell:not(:hover) {
+    opacity: 0.7;
+  }
+}
+a.cell:focus-visible,
+a.cell[data-active] {
+  transform: scale(1.03);
+}
+a.cell:focus-visible .caption,
+a.cell[data-active] .caption {
+  transform: translateY(0);
+}
+.mosaic:has(a.cell:focus-visible) .cell:not(:focus-visible),
+.mosaic:has(a.cell[data-active]) .cell:not([data-active]) {
+  opacity: 0.7;
+}
+
+/* Solid tiles: flat colour planes with grain at .13 (via .grain .grain-strong). */
+.butter {
+  background: var(--butter);
+}
+.lilac {
+  background: var(--lilac);
+}
+.arcade {
+  background: var(--arcade);
+}
+.bubblegum {
+  background: var(--bubblegum);
+}
+.ink {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* A cluster of three tags, set like stickers. */
+.tags {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12%;
+  list-style: none;
+  margin: 0;
+}
+.tags li {
+  padding: 0.35em 0.9em;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  font-size: clamp(0.8rem, 1vw, 1rem);
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform: rotate(var(--tilt, 0deg));
+}
+.butter .tags li {
+  background: var(--paper);
+}
+.ink .tags li {
+  border-color: var(--lilac);
+}
+
+.sticker {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+/* Die-cut stickers are portrait (~2:3), so width keeps them inside the tile. */
+.sticker img {
+  width: 54%;
+  height: auto;
+  transform: rotate(var(--tilt, -6deg));
+  filter: drop-shadow(0 6px 10px rgb(35 22 46 / 0.18));
+}
+
+/* The peeking mascot: her head and paws rise from the bottom edge. The art's
+   bottom edge is a flat, feathered cut, so it sits 3% of its height below the
+   tile, where the tile's overflow clip hides it. */
+.peek {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+}
+.peekArt {
+  position: relative;
+  width: 78%;
+  translate: 0 3%;
+}
+.peekArt img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+/* Same box and aspect as the art, so viewbox units land on the eye domes. */
+.peekEyes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* ── "View" bubble (fine pointers only) ───────────────────────────────── */
+.bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  display: none;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  margin: -38px 0 0 -38px;
+  border-radius: 50%;
+  background: var(--bubblegum);
+  color: var(--ink);
+  font-weight: 650;
+  font-size: 0.95rem;
+  pointer-events: none;
+  opacity: 0;
+  scale: 0.5;
+  transition:
+    opacity 180ms var(--ease-quint),
+    scale 240ms var(--ease-quint);
+}
+.bubble[data-on] {
+  opacity: 1;
+  scale: 1;
+}
+@media (hover: hover) and (pointer: fine) {
+  .bubble {
+    display: grid;
+  }
+}
+
+/* ── List view (§6.5) ─────────────────────────────────────────────────── */
+.list {
+  gap: 48px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 640px) {
+  .list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .list {
+    padding: calc(var(--nav-h) + clamp(32px, 7vh, 88px)) var(--gutter) 96px 0;
+  }
+}
+
+.card {
+  position: relative;
+}
+.cardMedia {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--lilac);
+}
+.cardMedia img {
+  object-fit: cover;
+}
+.cardTitle {
+  margin-top: 16px;
+  font-size: clamp(1.5rem, 2vw, 1.875rem);
+  line-height: 1.1;
+}
+.cardLink {
+  color: var(--ink);
+  text-decoration: none;
+}
+.cardLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-card);
+}
+.cardLink:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+.cardText {
+  margin-top: 8px;
+  font-size: 1rem;
+  line-height: 1.55;
+  max-width: 60ch;
+}
+
+/* ── Forced colours ───────────────────────────────────────────────────── */
+@media (forced-colors: active) {
+  .cell,
+  .cardMedia {
+    border: 1px solid CanvasText;
+  }
+  .caption {
+    border-top: 1px solid CanvasText;
+  }
+  .bubble {
+    display: none;
+  }
+}

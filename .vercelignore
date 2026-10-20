@@ -1,0 +1,8 @@
+/.redesign/
+/refs/
+/.object-separation/
+/.claude/
+/test-results/
+/playwright-report/
+/blob-report/
+/.lighthouseci/
