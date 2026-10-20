@@ -1,8 +1,17 @@
-// UI strings for the Work section and the /work/[slug] pages that content/site.ts
-// does not hold yet. They are interface labels from the blueprint (§6.3, §6.4),
-// not claims about Vidhi. Requested as `work.*` keys in content/site.ts; once the
-// lead adds them there, this file re-exports them and nothing else changes.
-export const workCopy = {
+// TEMPORARY SHIM, pending the lead (content/* is lead-owned).
+//
+// Every interface label the Work section and /work/[slug] use that
+// content/site.ts does not hold yet. This object is the exact `work.ui` block
+// requested for content/site.ts (same keys, order and values): they are
+// interface labels from the blueprint (§6.3, §6.4), not claims about Vidhi.
+//
+// Once `work.ui` is in content/site.ts, delete this file and read `work.ui`
+// from "@/content/site" in its three importers: components/work/Work.tsx,
+// app/work/[slug]/page.tsx and app/work/[slug]/opengraph-image.tsx. Nothing
+// else in components/work or app/work holds interface copy.
+import { person } from "@/content/site";
+
+export const workUi = {
   /** Cursor bubble over a mosaic tile (fine pointers only). */
   viewBubble: "View",
   /** Detail page: heading above the project's tags. */
@@ -17,4 +26,6 @@ export const workCopy = {
   prev: "Previous project",
   next: "Next project",
   moreProjects: "More projects",
+  /** Alt text of the /work/[slug] Open Graph card. */
+  ogAlt: `A project from ${person.name}'s portfolio`,
 } as const;

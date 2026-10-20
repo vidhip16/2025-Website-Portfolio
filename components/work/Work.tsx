@@ -1,7 +1,7 @@
 import { about, work } from "@/content/site";
 import { getProjects } from "@/content/projects";
 import { MotionToggle } from "@/components/shell/MotionToggle";
-import { workCopy } from "./copy";
+import { workUi } from "./copy";
 import { buildMosaic } from "./layout";
 import { ListView } from "./ListView";
 import { Mosaic } from "./Mosaic";
@@ -35,7 +35,7 @@ export function Work() {
         </div>
       </div>
       <div className={styles.stage}>
-        <Mosaic columns={columns} viewLabel={workCopy.viewBubble} />
+        <Mosaic columns={columns} viewLabel={workUi.viewBubble} />
         <ListView projects={projects} />
       </div>
       <WorkClient slugs={projects.map((p) => p.slug)} />

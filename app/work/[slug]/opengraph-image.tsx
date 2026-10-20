@@ -4,10 +4,11 @@ import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { person } from "@/content/site";
 import { getProject, getProjects, type Project } from "@/content/projects";
+import { workUi } from "@/components/work/copy";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = `A project from ${person.name}'s portfolio`;
+export const alt = workUi.ogAlt;
 
 // Prerender one card per verified project (re-exported to the image route).
 export function generateStaticParams() {

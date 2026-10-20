@@ -107,9 +107,17 @@
     display: grid;
   }
 }
-/* No JS (the boot script never ran): the toggle can't work, so hide it. */
-:global(html:not([data-motion])) .viewToggle {
+/* No JS: the boot script never ran, so html has no data-motion. Nothing can
+   pause the loop, seek a focused tile into the clipped frame or run the
+   toggles, so the list (§6.5) is the view, the toggles are hidden and the wall
+   is held still (see .track below; WCAG 2.2.2). Same idea as reduced motion,
+   minus the opt-in back to the mosaic. */
+:global(html:not([data-motion])) .mosaicWrap,
+:global(html:not([data-motion])) .controls {
   display: none;
+}
+:global(html:not([data-motion])) .list {
+  display: grid;
 }
 
 /* ── Mosaic ───────────────────────────────────────────────────────────── */
@@ -204,10 +212,16 @@
 :global(html[data-motion="off"]) .mosaic:not([data-motion-ready]) .track {
   animation-play-state: paused;
 }
+/* Reduced motion, or no JS at all: a static wall. Without JS nothing could
+   ever stop an infinite loop, so it never starts (WCAG 2.2.2), even though the
+   list hides the wall too. */
 @media (prefers-reduced-motion: reduce) {
   .track {
     animation: none;
   }
+}
+:global(html:not([data-motion])) .track {
+  animation: none;
 }
 
 .group {

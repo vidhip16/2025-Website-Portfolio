@@ -7,7 +7,7 @@ import { person } from "@/content/site";
 import { getProject, getProjects } from "@/content/projects";
 import { Footer } from "@/components/footer/Footer";
 import { BackLink } from "@/components/work/BackLink";
-import { workCopy } from "@/components/work/copy";
+import { workUi } from "@/components/work/copy";
 import { MORPH_SHARE, morphName } from "@/components/work/transition";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -65,7 +65,7 @@ export default async function ProjectPage({ params }: Props) {
       >
         <article aria-labelledby="project-title" className="mx-auto max-w-[1320px]">
           <BackLink
-            label={workCopy.back}
+            label={workUi.back}
             className="inline-flex min-h-11 items-center gap-2 rounded-full pr-3 font-semibold text-ink no-underline hover:underline"
           />
 
@@ -96,7 +96,7 @@ export default async function ProjectPage({ params }: Props) {
               </h1>
               <p className="mt-6 max-w-[60ch]">{project.description}</p>
 
-              <h2 className="mt-10 font-sans text-base font-semibold">{workCopy.builtWith}</h2>
+              <h2 className="mt-10 font-sans text-base font-semibold">{workUi.builtWith}</h2>
               <ul className="mt-3 flex flex-wrap gap-2">
                 {project.tags.map((tag) => (
                   <li key={tag} className="rounded-full border-2 border-ink px-3 py-1 text-base leading-tight">
@@ -107,7 +107,7 @@ export default async function ProjectPage({ params }: Props) {
 
               <p className="mt-10">
                 <a href={project.repo} data-repo className="btn btn-primary" rel="noopener noreferrer">
-                  {workCopy.viewCode}
+                  {workUi.viewCode}
                 </a>
               </p>
               {/* TODO(vidhi): problem, role, what I learned and a live demo link stay
@@ -118,7 +118,7 @@ export default async function ProjectPage({ params }: Props) {
           {project.original && (
             <section aria-labelledby="original-title" className="mt-[clamp(72px,10vw,128px)]">
               <h2 id="original-title" className="text-[clamp(1.75rem,3vw,2.5rem)]">
-                {workCopy.original}
+                {workUi.original}
               </h2>
               <figure className="mt-8 w-[min(420px,82vw)] -rotate-2 border-[10px] border-paper bg-paper shadow-[0_18px_40px_rgb(35_22_46/0.16)]">
                 <Image
@@ -134,7 +134,7 @@ export default async function ProjectPage({ params }: Props) {
           )}
 
           <nav
-            aria-label={workCopy.moreProjects}
+            aria-label={workUi.moreProjects}
             className="mt-[clamp(72px,10vw,128px)] grid gap-4 border-t-2 border-ink pt-8 sm:grid-cols-2"
           >
             <Link
@@ -142,7 +142,7 @@ export default async function ProjectPage({ params }: Props) {
               rel="prev"
               className="group flex min-h-11 flex-col gap-1 text-ink no-underline"
             >
-              <span className="text-base">{workCopy.prev}</span>
+              <span className="text-base">{workUi.prev}</span>
               <span className="font-display text-[clamp(1.5rem,2.6vw,2.25rem)] font-bold leading-tight group-hover:underline">
                 {prev.title}
               </span>
@@ -152,7 +152,7 @@ export default async function ProjectPage({ params }: Props) {
               rel="next"
               className="group flex min-h-11 flex-col gap-1 text-ink no-underline sm:items-end sm:text-right"
             >
-              <span className="text-base">{workCopy.next}</span>
+              <span className="text-base">{workUi.next}</span>
               <span className="font-display text-[clamp(1.5rem,2.6vw,2.25rem)] font-bold leading-tight group-hover:underline">
                 {next.title}
               </span>

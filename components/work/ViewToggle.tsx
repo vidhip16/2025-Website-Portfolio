@@ -2,7 +2,6 @@
 
 import { List } from "lucide-react";
 import { useEffect, useSyncExternalStore } from "react";
-import styles from "./work.module.css";
 
 type View = "mosaic" | "list";
 
@@ -71,7 +70,7 @@ export function ViewToggle({ label }: { label: string }) {
       data-view-toggle
       aria-pressed={view === "list"}
       onClick={() => setView(view === "list" ? "mosaic" : "list")}
-      className={`${styles.viewToggle} inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink px-4 text-[0.95rem] font-semibold text-ink transition-colors aria-pressed:bg-ink aria-pressed:text-paper`}
+      className="inline-flex min-h-11 items-center gap-2 rounded-full border-2 border-ink px-4 text-[0.95rem] font-semibold text-ink transition-colors aria-pressed:bg-ink aria-pressed:text-paper"
     >
       <List aria-hidden size={18} strokeWidth={1.75} strokeLinecap="round" />
       <span>{label}</span>
