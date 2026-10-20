@@ -34,7 +34,10 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   turbopack: {
     rules: {
+      // Tailwind processes plain stylesheets only; CSS Modules (which use
+      // :global()) go through Next's own CSS Modules pipeline.
       "*.css": {
+        condition: { not: { path: /\.module\.css$/ } },
         loaders: ["@tailwindcss/turbopack"],
         as: "*.css",
       },

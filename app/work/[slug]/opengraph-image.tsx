@@ -15,8 +15,26 @@ export function generateStaticParams() {
 }
 
 const ROOT = process.cwd();
-// Satori takes ttf/otf/woff. Read once at module scope (a predictable value).
-const fraunces = await readFile(join(ROOT, "assets/fonts/Fraunces-800.ttf")).catch(() => null);
+// Satori takes ttf/otf/woff, without variation axes. Revision R1 type: Instrument
+// Serif for the title, static Instrument Sans instances for labels and tags.
+const font = (f: string) => readFile(join(ROOT, "assets/fonts", f)).catch(() => null);
+const [serif, sans500, sans650] = await Promise.all([
+  font("InstrumentSerif-Regular.ttf"),
+  font("InstrumentSans-500.ttf"),
+  font("InstrumentSans-650.ttf"),
+]);
+const FONTS = [
+  serif && { name: "ISerif", data: serif, weight: 400 as const, style: "normal" as const },
+  sans500 && { name: "ISans", data: sans500, weight: 500 as const, style: "normal" as const },
+  sans650 && { name: "ISans", data: sans650, weight: 600 as const, style: "normal" as const },
+].filter((f): f is NonNullable<typeof f> => Boolean(f));
+const sticker = (() => {
+  try {
+    return `data:image/png;base64,${readFileSync(join(ROOT, "assets/og/sticker-wave.png")).toString("base64")}`;
+  } catch {
+    return null;
+  }
+})();
 
 const INK = "#23162E";
 const PAPER = "#F6F1FA";
@@ -35,21 +53,14 @@ const TEXT_W = size.width - PAD_L - PAD_R - GAP - (CARD_W + MAT * 2);
 /**
  * The 4:5 card art. Satori/resvg can't decode WebP, so the cover file itself
  * (public/work/covers/*.webp) is never used here. In order:
- * 1. assets/og/<slug>.jpg|png: a JPEG/PNG export of the H8 cover (lead adds these)
- * 2. the regraded original print (public/work/originals/<slug>.jpg)
- * 3. null → a flat token colour with grain
+ * 1. assets/og/<slug>.jpg|png: a JPEG/PNG export of the H8 cover
+ * 2. null → a flat token colour with grain
  */
 function cardArt(project: Project): string | null {
-  const candidates: [string, string][] = [
-    [join(ROOT, "assets/og", `${project.slug}.jpg`), "image/jpeg"],
-    [join(ROOT, "assets/og", `${project.slug}.png`), "image/png"],
-  ];
-  if (project.original?.src.endsWith(".jpg")) {
-    candidates.push([join(ROOT, "public", project.original.src), "image/jpeg"]);
-  }
-  for (const [file, type] of candidates) {
+  // Statically scoped to assets/og so file tracing doesn't pull in the whole project.
+  for (const [ext, type] of [["jpg", "image/jpeg"], ["png", "image/png"]] as const) {
     try {
-      return `data:${type};base64,${readFileSync(file).toString("base64")}`;
+      return `data:${type};base64,${readFileSync(join(process.cwd(), "assets", "og", `${project.slug}.${ext}`)).toString("base64")}`;
     } catch {
       /* try the next source */
     }
@@ -65,7 +76,7 @@ function grain(): string | null {
   }
 }
 
-const titleSize = (title: string) => (title.length <= 12 ? 104 : title.length <= 18 ? 88 : 72);
+const titleSize = (title: string) => (title.length <= 12 ? 118 : title.length <= 18 ? 100 : 84);
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -90,14 +101,31 @@ export default async function Image({ params }: { params: Promise<{ slug: string
           alignItems: "center",
           gap: GAP,
           padding: `0 ${PAD_R}px 0 ${PAD_L}px`,
+          position: "relative",
           background: PAPER,
+          backgroundImage:
+            "radial-gradient(520px 420px at 82% 92%, rgba(255,134,181,0.28), transparent 70%), radial-gradient(460px 360px at 6% 8%, rgba(94,200,255,0.14), transparent 70%), radial-gradient(700px 520px at 30% 55%, rgba(183,163,240,0.26), transparent 70%)",
           color: INK,
-          fontFamily: fraunces ? "Fraunces" : undefined,
+          fontFamily: "ISans",
         }}
       >
+        {tile && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              opacity: 0.07,
+              backgroundImage: `url(${tile})`,
+              backgroundSize: "256px 256px",
+              backgroundRepeat: "repeat",
+            }}
+          />
+        )}
         {/* The print: 4:5 card on a paper mat, tilted like the wall labels. */}
         <div
           style={{
+            position: "relative",
             display: "flex",
             flexShrink: 0,
             padding: MAT,
@@ -141,17 +169,28 @@ export default async function Image({ params }: { params: Promise<{ slug: string
               )}
             </div>
           )}
+          {sticker && (
+            // Ping waves from the print's corner: the layer in front of the art.
+            <img
+              src={sticker}
+              width={116}
+              height={168}
+              alt=""
+              style={{ position: "absolute", right: -46, bottom: -30, transform: "rotate(6deg)" }}
+            />
+          )}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", width: TEXT_W }}>
-          <div style={{ display: "flex", fontSize: 34, color: ORCHID }}>{person.name}</div>
+          <div style={{ display: "flex", fontSize: 30, fontWeight: 600, color: ORCHID }}>{person.name}</div>
           <div
             style={{
               display: "flex",
               marginTop: 18,
+              fontFamily: "ISerif",
               fontSize: titleSize(project.title),
-              lineHeight: 0.98,
-              letterSpacing: -1.5,
+              lineHeight: 0.95,
+              letterSpacing: -2,
             }}
           >
             {project.title}
@@ -163,9 +202,10 @@ export default async function Image({ params }: { params: Promise<{ slug: string
                 style={{
                   display: "flex",
                   padding: "8px 22px",
-                  border: `3px solid ${INK}`,
+                  border: `2px solid ${INK}`,
                   borderRadius: 999,
-                  fontSize: 28,
+                  fontSize: 26,
+                  fontWeight: 500,
                 }}
               >
                 {tag}
@@ -177,7 +217,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
     ),
     {
       ...size,
-      fonts: fraunces ? [{ name: "Fraunces", data: fraunces, weight: 800, style: "normal" }] : undefined,
+      fonts: FONTS.length ? FONTS : undefined,
     },
   );
 }

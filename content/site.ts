@@ -61,6 +61,9 @@ export const seo = {
   description:
     "Vidhi Patel is an IT student at York University and a Junior IT Associate in Toronto who builds small, focused tools. See projects, skills and how to get in touch.",
   ogLine: "IT student and Junior IT Associate, Toronto",
+  /** OG card subtitle (R1): a semibold lead sentence, then a regular one. */
+  ogLead: "IT student at York University.",
+  ogFollow: "Junior IT Associate in Toronto.",
 } as const;
 
 export type Line = Verified & { text: string };

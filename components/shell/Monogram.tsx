@@ -1,7 +1,7 @@
 import { MONOGRAM_EAR, MONOGRAM_LETTERS, MONOGRAM_VIEWBOX } from "./monogram-paths";
 
 /**
- * The "vp" monogram: real Fraunces 800 outlines plus Ping's folded ear rising
+ * The "vp" monogram: real Instrument Serif outlines plus Ping's folded ear rising
  * from the p stem (scripts/make_monogram.py, blueprint §1.5).
  * Decorative only (`aria-hidden`): the wrapping link carries the accessible
  * name. Letters use `currentColor`; the ear is lilac with a currentColor
@@ -21,7 +21,7 @@ export function Monogram({ className = "" }: { className?: string }) {
         d={MONOGRAM_EAR}
         fill="var(--lilac)"
         stroke="currentColor"
-        strokeWidth={70}
+        strokeWidth={26}
         strokeLinejoin="round"
         className="forced-colors:fill-[CanvasText]"
       />
