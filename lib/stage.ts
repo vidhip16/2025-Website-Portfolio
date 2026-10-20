@@ -5,6 +5,9 @@
 
 export type Handoff = "still" | "dots";
 
+/** A point the dot pupils should look at (client px), or null for the cursor. */
+export type LookTarget = { x: number; y: number } | null;
+
 export type StageState = {
   /** Hero pin progress 0..1 (desktop). Mobile: 0 until Ping's top reaches the viewport top, then 1. */
   heroProgress: number;
@@ -14,9 +17,27 @@ export type StageState = {
   heroInView: boolean;
   /** True while the projection room (#about) intersects the viewport. */
   roomInView: boolean;
+  /**
+   * Dot-stage drive values, written by the scroll scrubs (hero, room, contact)
+   * and read by the renderer every frame. shape: 0 ping-hero, 1 ping-seat,
+   * 2 braces, 3 db-net, 4 terminal, 5 envelope (fractional = morphing).
+   */
+  dots: { shape: number; disperse: number; opacity: number; glow: number };
+  /** Skill-chip hover/focus: where the dot pupils should look (null = cursor). */
+  look: LookTarget;
+  /** Skill bubble text beside the shape, e.g. "used in Type Racer" (null = hidden). */
+  bubble: string | null;
 };
 
-let state: StageState = { heroProgress: 0, handoff: "still", heroInView: true, roomInView: false };
+let state: StageState = {
+  heroProgress: 0,
+  handoff: "still",
+  heroInView: true,
+  roomInView: false,
+  dots: { shape: 0, disperse: 0, opacity: 1, glow: 0 },
+  look: null,
+  bubble: null,
+};
 const listeners = new Set<(s: StageState, prev: StageState) => void>();
 let pingFigure: HTMLElement | null = null;
 
@@ -27,13 +48,7 @@ export const stage = {
   set(patch: Partial<StageState>): void {
     const prev = state;
     const next = { ...state, ...patch };
-    if (
-      next.heroProgress === prev.heroProgress &&
-      next.handoff === prev.handoff &&
-      next.heroInView === prev.heroInView &&
-      next.roomInView === prev.roomInView
-    )
-      return;
+    if ((Object.keys(patch) as (keyof StageState)[]).every((k) => Object.is(next[k], prev[k]))) return;
     state = next;
     listeners.forEach((l) => l(next, prev));
   },
@@ -51,6 +66,11 @@ export function registerPingFigure(el: HTMLElement | null): void {
 /** The figure.ping element, for reading its rect in the hand-off frame. */
 export function getPingFigure(): HTMLElement | null {
   return pingFigure;
+}
+
+/** Merge a partial dots patch (keeps the other drive values). */
+export function setDots(patch: Partial<StageState["dots"]>): void {
+  stage.set({ dots: { ...state.dots, ...patch } });
 }
 
 /** Hero progress at which the still swaps to dots in one frame (blueprint §3.1). */
