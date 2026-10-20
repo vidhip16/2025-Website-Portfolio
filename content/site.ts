@@ -31,6 +31,8 @@ export const mascot = {
   wallLabel: "Ping, 2026. Flocked velvet, one blank keycap. Looks where you look.",
   /** Gyroscope opt-in button (touch). */
   lookAroundLabel: "Let Ping look around",
+  /** Announced when the visitor declines motion-sensor access. */
+  lookAroundDenied: "Motion access is off, so Ping will keep following your taps instead.",
   sleepingAlt: "Ping asleep, hugging a keycap",
   lostAlt: "Ping holding an empty picture frame",
   peekAlt: "Ping peeking over the edge",
@@ -71,9 +73,11 @@ export type Line = Verified & { text: string };
 export const hero = {
   intro: [
     {
-      text: "IT student at York University and Junior IT Associate in Toronto. I build small tools that do one job well.",
+      // R1 subtitle: a semibold lead sentence, then a regular one (split on the first full stop).
+      text: "IT student at York University. Junior IT Associate in Toronto.",
       verified: true,
     },
+    { text: "I build small tools that do one job well.", verified: true },
     // TODO(vidhi): a line about the job duties, once supplied (checklist #3).
   ] satisfies Line[],
   status: {
