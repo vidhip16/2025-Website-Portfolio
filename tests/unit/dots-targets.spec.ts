@@ -9,14 +9,20 @@ import gaze from "../../content/gaze.json";
 import manifest from "../../public/dots/shapes.json";
 import {
   ALPHA_MIN,
+  HEAVY,
   HIGHLIGHT_LUMA,
+  IDLE_RESERVE_MS,
   PUPIL_RADIUS,
+  SLICE_MS,
   buildTargets,
   buildTargetsJob,
   mulberry32,
   resolveSources,
+  runSliced,
   sampleDims,
   tierFor,
+  type JobStep,
+  type SliceDeadline,
 } from "../../lib/dots/shapes.worker";
 import {
   COLOR,
@@ -319,15 +325,19 @@ test.describe("dot targets: sampling core", () => {
     }
   });
 
-  test("the job yields in small units for onIdle slicing and matches the synchronous result", () => {
+  test("the job yields in small units, flags big allocations HEAVY, and matches the synchronous result", () => {
     const job = buildTargetsJob(MASKS, SOURCES, 4000);
-    let yields = 0;
+    const values: JobStep[] = [];
     let step = job.next();
     while (!step.done) {
-      yields++;
+      values.push(step.value);
       step = job.next();
     }
-    expect(yields).toBeGreaterThan(30);
+    expect(values.length).toBeGreaterThan(30);
+    expect(values.filter((v) => v !== undefined && v !== HEAVY)).toEqual([]);
+    // One HEAVY before the texture (the very first yield), one per distinct mask's pixel list.
+    expect(values[0]).toBe(HEAVY);
+    expect(values.filter((v) => v === HEAVY).length).toBe(1 + new Set(MASKS).size);
     expect(bytes(step.value).equals(bytes(buildTargets(MASKS, SOURCES, 4000)))).toBe(true);
   });
 
@@ -339,6 +349,146 @@ test.describe("dot targets: sampling core", () => {
     expect(() => buildTargets([empty], [SOURCES[0]], N)).toThrow(/"disc" has no pixels/);
     expect(tierFor(12000)).toBe("T2");
     expect(tierFor(4000)).toBe("T1");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runSliced (main-thread fallback) on a fake clock: fake units advance the clock
+// by a set number of ms, and the scheduler queue is drained by hand.
+
+type Unit = { ms: number; heavy?: boolean };
+type SliceLog = { start: number; end: number; units: number; left: number | null };
+type MakeDeadline = (clock: { t: number }, start: number) => SliceDeadline | null;
+
+const noDeadline: MakeDeadline = () => null;
+/** An idle period of `ms` from the slice's start. */
+const idleFor =
+  (ms: number): MakeDeadline =>
+  (clock, start) => ({ didTimeout: false, timeRemaining: () => Math.max(0, start + ms - clock.t) });
+/** rIC fired on its timeout: the browser is busy, timeRemaining() is 0. */
+const timedOut: MakeDeadline = () => ({ didTimeout: true, timeRemaining: () => 0 });
+
+function* fakeJob(clock: { t: number }, units: Unit[], starts: number[], failAt: number): Generator<JobStep, number, void> {
+  for (let k = 0; k < units.length; k++) {
+    starts.push(clock.t);
+    if (k === failAt) throw new Error(`unit ${k} failed`);
+    clock.t += units[k].ms;
+    if (k + 1 < units.length) yield units[k + 1].heavy ? HEAVY : undefined;
+  }
+  return units.length;
+}
+
+async function drive(units: Unit[], deadline: MakeDeadline = noDeadline, failAt = -1) {
+  const clock = { t: 0 };
+  const starts: number[] = [];
+  const queue: ((d: SliceDeadline | null) => void)[] = [];
+  const firsts: boolean[] = [];
+  const done = runSliced(
+    fakeJob(clock, units, starts, failAt),
+    (slice, first) => {
+      queue.push(slice);
+      firsts.push(first);
+    },
+    () => clock.t,
+  );
+  const slices: SliceLog[] = [];
+  while (queue.length > 0) {
+    const slice = queue.shift()!;
+    clock.t += 10; // the page does other things between slices
+    const start = clock.t;
+    const before = starts.length;
+    const d = deadline(clock, start);
+    slice(d);
+    slices.push({ start, end: clock.t, units: starts.length - before, left: d && !d.didTimeout ? d.timeRemaining() : null });
+  }
+  return { done, slices, starts, firsts };
+}
+
+const repeat = (count: number, ms: number): Unit[] => Array.from({ length: count }, () => ({ ms }));
+const longest = (slices: SliceLog[]) => Math.max(...slices.map((s) => s.end - s.start));
+
+test.describe("dot targets: main-thread slicing", () => {
+  test("a slice stops before a unit that could take it past SLICE_MS, at any unit speed", async () => {
+    expect(SLICE_MS).toBe(4);
+    // Desktop-sized units: 8 per slice, never past 4 ms.
+    const fast = await drive(repeat(40, 0.5));
+    expect(await fast.done).toBe(40);
+    expect(longest(fast.slices)).toBeLessThanOrEqual(SLICE_MS);
+    expect(fast.slices.slice(0, -1).every((s) => s.units === 8)).toBe(true);
+    expect(fast.firsts).toEqual([true, ...Array(fast.slices.length - 1).fill(false)]);
+
+    // The same job on a phone 3.2× slower: the estimate follows the real unit time.
+    const slow = await drive(repeat(20, 1.6));
+    expect(await slow.done).toBe(20);
+    expect(longest(slow.slices)).toBeLessThanOrEqual(SLICE_MS);
+    expect(slow.slices.every((s) => s.units === 2)).toBe(true);
+  });
+
+  test("a HEAVY unit always opens a fresh slice and does not inflate the estimate", async () => {
+    const units: Unit[] = [...repeat(5, 0.5), { ms: 3, heavy: true }, ...repeat(6, 0.5), { ms: 2.5, heavy: true }, ...repeat(3, 0.5)];
+    const { done, slices, starts } = await drive(units);
+    expect(await done).toBe(units.length);
+    const sliceStarts = new Set(slices.map((s) => s.start));
+    units.forEach((u, k) => {
+      if (u.heavy) expect(sliceStarts.has(starts[k])).toBe(true);
+    });
+    // After the 3 ms heavy unit the slice still fits two 0.5 ms units (3 + 0.5 + 0.5 = 4).
+    const heavySlice = slices.find((s) => s.start === starts[5])!;
+    expect(heavySlice.units).toBe(3);
+    expect(longest(slices)).toBeLessThanOrEqual(SLICE_MS);
+  });
+
+  test("mixed unit sizes never produce a task over 8 ms", async () => {
+    const rnd = mulberry32(7);
+    const units: Unit[] = Array.from({ length: 400 }, () =>
+      rnd() < 0.05 ? { ms: 0.5 + rnd() * 3, heavy: true } : { ms: 0.02 + rnd() * rnd() * 2 },
+    );
+    const maxLight = Math.max(...units.filter((u) => !u.heavy).map((u) => u.ms));
+    for (const deadline of [noDeadline, idleFor(50), idleFor(6), timedOut]) {
+      const { done, slices } = await drive(units, deadline);
+      expect(await done).toBe(units.length);
+      expect(longest(slices)).toBeLessThanOrEqual(SLICE_MS + maxLight);
+      expect(longest(slices)).toBeLessThanOrEqual(8);
+    }
+  });
+
+  test("honours the IdleDeadline: leaves IDLE_RESERVE_MS unused, yet always makes progress", async () => {
+    expect(IDLE_RESERVE_MS).toBe(2);
+    const short = await drive(repeat(30, 0.5), idleFor(3));
+    expect(await short.done).toBe(30);
+    // 3 ms of idle: 0.5 + 0.5, then 2 ms left − 0.5 would dip under the reserve.
+    for (const s of short.slices.slice(0, -1)) {
+      expect(s.units).toBe(2);
+      expect(s.left!).toBeGreaterThanOrEqual(IDLE_RESERVE_MS);
+    }
+    // No idle time at all (not a timeout): one unit per slice, still finishes.
+    const none = await drive(repeat(12, 0.5), idleFor(0));
+    expect(await none.done).toBe(12);
+    expect(none.slices.every((s) => s.units === 1)).toBe(true);
+    // rIC fired on its timeout: the deadline is ignored and the 4 ms cap applies.
+    const late = await drive(repeat(40, 0.5), timedOut);
+    expect(await late.done).toBe(40);
+    expect(late.slices.slice(0, -1).every((s) => s.units === 8)).toBe(true);
+  });
+
+  test("a failing unit rejects and schedules nothing more", async () => {
+    const { done, slices, starts } = await drive(repeat(30, 0.5), noDeadline, 13);
+    await expect(done).rejects.toThrow(/unit 13 failed/);
+    expect(starts.length).toBe(14);
+    expect(slices.length).toBe(2); // units 0–7, then 8–13 (throws)
+  });
+
+  test("the real sampling job through runSliced matches buildTargets", async () => {
+    const queue: ((d: SliceDeadline | null) => void)[] = [];
+    const done = runSliced(buildTargetsJob(MASKS, SOURCES, N), (slice) => queue.push(slice));
+    let slices = 0;
+    while (queue.length > 0) {
+      queue.shift()!(null);
+      slices++;
+    }
+    const t = await done;
+    expect(slices).toBeGreaterThanOrEqual(1 + 1 + new Set(MASKS).size); // every HEAVY opens a slice
+    expect(bytes(t).equals(bytes(buildTargets(MASKS, SOURCES, N)))).toBe(true);
   });
 });
 

@@ -4,16 +4,25 @@
 //
 // Worker first (lib/dots/shapes.worker.ts: fetch → createImageBitmap →
 // OffscreenCanvas → core). If Worker or OffscreenCanvas 2D is missing, or the
-// worker fails, the same core runs on the main thread: images decode with
-// HTMLImageElement.decode(), each canvas read runs in its own onIdle task, and the
-// sampling generator is sliced so no task runs much past SLICE_MS.
+// worker fails, the same core runs on the main thread. Images decode with
+// HTMLImageElement.decode(); each drawImage and each getImageData gets an onIdle
+// task of its own. The sampling generator runs through runSliced (shapes.worker.ts)
+// in requestIdleCallback slices that honour the IdleDeadline and a 4 ms cap.
 //
 // No three import, no GSAP: the renderer chunk stays small. Browser only.
 
 import gaze from "../../content/gaze.json";
 import shapes from "../../public/dots/shapes.json";
 import { onIdle } from "../idle";
-import { assertPointCount, buildTargetsJob, decodeAll, resolveSources, sampleDims } from "./shapes.worker";
+import {
+  assertPointCount,
+  buildTargetsJob,
+  decodeAll,
+  resolveSources,
+  runSliced,
+  sampleDims,
+  type SliceScheduler,
+} from "./shapes.worker";
 import { SEED, type DotTargets, type Mask, type ShapeSource, type ShapesRequest, type ShapesResponse } from "./types";
 
 export * from "./types";
@@ -26,8 +35,8 @@ export {
   tierFor,
 } from "./shapes.worker";
 
-/** Main-thread fallback: stop pulling work units once a task has run this long. */
-const SLICE_MS = 6;
+/** Main-thread fallback without requestIdleCallback: gap between slices on a plain timer. */
+const TIMER_GAP_MS = 16;
 
 const cache = new Map<number, Promise<DotTargets>>();
 let nextId = 1;
@@ -121,9 +130,20 @@ function viaWorker(n: number, sources: ShapeSource[]): Promise<DotTargets> {
 
 const idle = () => new Promise<void>((resolve) => onIdle(resolve));
 
+/**
+ * lib/idle's onIdle, except the slice receives its IdleDeadline (onIdle's callback
+ * takes no arguments). Without requestIdleCallback (Safari) the first slice waits
+ * 200 ms like onIdle does, and later slices run TIMER_GAP_MS apart with no deadline,
+ * so runSliced falls back to its 4 ms cap.
+ */
+const scheduleSlice: SliceScheduler = (slice, first) => {
+  if (typeof requestIdleCallback === "function") requestIdleCallback(slice, { timeout: 2000 });
+  else setTimeout(() => slice(null), first ? 200 : TIMER_GAP_MS);
+};
+
 async function onMainThread(n: number, sources: ShapeSource[]): Promise<DotTargets> {
   const masks = await decodeAll(sources, decodeOnMain);
-  return runSliced(buildTargetsJob(masks, sources, n, SEED));
+  return runSliced(buildTargetsJob(masks, sources, n, SEED), scheduleSlice);
 }
 
 async function decodeOnMain(url: string, longSide: number): Promise<Mask> {
@@ -131,7 +151,6 @@ async function decodeOnMain(url: string, longSide: number): Promise<Mask> {
   img.decoding = "async";
   img.src = url;
   await img.decode(); // off the main thread
-  await idle(); // the draw + pixel read get an idle task of their own
   const { w, h } = sampleDims(img.naturalWidth, img.naturalHeight, longSide);
   const canvas = document.createElement("canvas");
   canvas.width = w;
@@ -139,32 +158,10 @@ async function decodeOnMain(url: string, longSide: number): Promise<Mask> {
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) throw new Error("dots: no 2d canvas context");
   ctx.imageSmoothingQuality = "high";
+  await idle(); // the resampling draw gets an idle task of its own…
   ctx.drawImage(img, 0, 0, w, h);
+  await idle(); // …and so does the pixel read
   const { data } = ctx.getImageData(0, 0, w, h);
   canvas.width = canvas.height = 0; // release the backing store
   return { width: w, height: h, data, aspect: img.naturalWidth / img.naturalHeight };
-}
-
-/** Drive a generator in onIdle tasks of about SLICE_MS each. */
-function runSliced<T>(job: Generator<void, T, void>): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const slice = () => {
-      const start = performance.now();
-      try {
-        for (;;) {
-          const step = job.next();
-          if (step.done) {
-            resolve(step.value);
-            return;
-          }
-          if (performance.now() - start >= SLICE_MS) break;
-        }
-      } catch (err) {
-        reject(err);
-        return;
-      }
-      onIdle(slice);
-    };
-    onIdle(slice);
-  });
 }

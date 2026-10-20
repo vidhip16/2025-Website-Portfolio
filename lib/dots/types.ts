@@ -34,7 +34,7 @@ export const COLOR = { body: 0, highlight: 1, pupil: 2 } as const;
 export type ColorIndex = (typeof COLOR)[keyof typeof COLOR];
 /** Points per shape by tier (§5.5). T0 is the static halftone and has no targets. */
 export const TIER_POINTS = { T2: 12000, T1: 4000 } as const;
-/** Upper bound for n (the angle sort packs the point index into 15 bits). */
+/** Upper bound for n (the angle sort keeps point indices in 16 bits). */
 export const MAX_POINTS = 32768;
 
 /** The two point tiers that have targets. */

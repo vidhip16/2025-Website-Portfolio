@@ -9,6 +9,13 @@
 //
 // The message handler installs itself only inside a WorkerGlobalScope, so importing
 // this module on the main thread or in Node (unit tests) has no side effects.
+//
+// Slicing contract (main-thread fallback, "no task over ~8 ms"): the job is a
+// generator that yields between small units of work (at most ~0.2 ms each on a
+// desktop, so ~1 ms on a 5× slower phone). Before each big allocation it yields
+// HEAVY instead, and runSliced starts that unit at the top of a fresh slice.
+// runSliced stops a slice before any unit that might take it past SLICE_MS (4 ms)
+// or leave less than IDLE_RESERVE_MS of the browser's idle period.
 
 import {
   COLOR,
@@ -43,12 +50,24 @@ export const RIM = 0.008;
 /** Pupil disc radius as a fraction of the box's shorter side (before scale). */
 export const PUPIL_RADIUS = 0.04;
 
+/** Main-thread fallback: a slice stops before any unit that might take it past this. */
+export const SLICE_MS = 4;
+/** …or that might leave less than this much of the browser's idle period. */
+export const IDLE_RESERVE_MS = 2;
+/** Yielded by the job when its next unit allocates a large buffer: run that unit first in a slice. */
+export const HEAVY = "heavy";
+/** What the sampling job yields between units. */
+export type JobStep = void | typeof HEAVY;
+
 const Z_SPAN_PX = 40;
 const Z_JITTER_PX = 2;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-const ANGLE_STEPS = 1 << 20;
-const INDEX_STEPS = MAX_POINTS; // 2^15: angle bucket × 2^15 + index stays an exact float64
-// Work units between yields, sized so one unit stays well under 1 ms on a slow phone.
+// Angles are quantised to 2^20 buckets and ordered by a two-pass LSD radix sort, 10 bits a pass.
+const RADIX_BITS = 10;
+const RADIX = 1 << RADIX_BITS;
+const RADIX_MASK = RADIX - 1;
+const ANGLE_STEPS = 1 << (2 * RADIX_BITS);
+// Work units between yields: ≤ ~0.2 ms each on a desktop (T2, real assets, Node 22).
 const SCAN_ROWS = 16;
 const SAMPLE_BATCH = 512;
 const POINT_BATCH = 2048;
@@ -146,18 +165,61 @@ export function decodeAll(
 
 const clampHalf = (v: number) => (v < -0.5 ? -0.5 : v > 0.5 ? 0.5 : v);
 
-/** Indices of the pixels with alpha > ALPHA_MIN, row-major. */
-function* scanMask(mask: Mask): Generator<void, Int32Array, void> {
+/**
+ * Indices of the pixels with alpha > ALPHA_MIN, row-major. Two passes (count, then
+ * fill an exact-size array), so there is no w × h scratch array and no copy at the end.
+ */
+function* scanMask(mask: Mask): Generator<JobStep, Int32Array, void> {
   const { width: w, height: h, data } = mask;
   if (!(w > 0 && h > 0) || data.length < w * h * 4) throw new Error("dots: mask data does not match its size");
-  const out = new Int32Array(w * h);
   let count = 0;
   for (let y = 0; y < h; y++) {
     const row = y * w;
-    for (let x = 0; x < w; x++) if (data[(row + x) * 4 + 3] > ALPHA_MIN) out[count++] = row + x;
+    for (let x = 0; x < w; x++) if (data[(row + x) * 4 + 3] > ALPHA_MIN) count++;
     if ((y + 1) % SCAN_ROWS === 0) yield;
   }
-  return out.slice(0, count);
+  yield HEAVY; // up to w × h × 4 bytes (1 MB for a 512² mask)
+  const out = new Int32Array(count);
+  let k = 0;
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    for (let x = 0; x < w; x++) if (data[(row + x) * 4 + 3] > ALPHA_MIN) out[k++] = row + x;
+    if ((y + 1) % SCAN_ROWS === 0) yield;
+  }
+  return out;
+}
+
+/**
+ * Indices 0..n−1 ordered by key (keys < 2^20), ties in index order: a stable LSD
+ * radix sort, two passes of 10 bits, yielding every POINT_BATCH elements. It gives the
+ * same order as sorting (key × 2^15 + index), but no unit is a whole native sort.
+ */
+function* sortByKey(keys: Uint32Array): Generator<JobStep, Uint16Array, void> {
+  const n = keys.length;
+  let from = new Uint16Array(n); // n < MAX_POINTS ≤ 2^16
+  let to = new Uint16Array(n);
+  for (let i = 0; i < n; i++) from[i] = i;
+  const start = new Uint32Array(RADIX);
+  for (let shift = 0; shift < 2 * RADIX_BITS; shift += RADIX_BITS) {
+    start.fill(0);
+    for (let i = 0; i < n; i++) {
+      if ((i + 1) % POINT_BATCH === 0) yield;
+      start[(keys[i] >>> shift) & RADIX_MASK]++;
+    }
+    for (let d = 0, sum = 0; d < RADIX; d++) {
+      const c = start[d];
+      start[d] = sum;
+      sum += c;
+    }
+    for (let j = 0; j < n; j++) {
+      if ((j + 1) % POINT_BATCH === 0) yield;
+      const i = from[j];
+      to[start[(keys[i] >>> shift) & RADIX_MASK]++] = i;
+    }
+    [from, to] = [to, from];
+    yield;
+  }
+  return from;
 }
 
 /**
@@ -173,7 +235,7 @@ function* sampleShape(
   inside: Int32Array,
   src: ShapeSource,
   rng: () => number,
-): Generator<void, EyePair, void> {
+): Generator<JobStep, EyePair, void> {
   const { width: w, height: h, data } = mask;
   if (inside.length === 0) throw new Error(`dots: "${src.name}" has no pixels with alpha > ${ALPHA_MIN}`);
   const bodyN = n - PUPIL_POINTS;
@@ -211,8 +273,8 @@ function* sampleShape(
   }
 
   // Sort by angle around the centroid, measured in the box's own proportions
-  // (x × aspect) so the order matches the shape as drawn. Key = angle bucket ×
-  // 2^15 + index: one native Float64Array sort, ties broken by sample order.
+  // (x × aspect) so the order matches the shape as drawn. Angles are quantised to
+  // 2^20 buckets; ties keep sample order (stable radix sort).
   const aspect = w / h;
   let cx = 0;
   let cy = 0;
@@ -222,19 +284,17 @@ function* sampleShape(
   }
   cx /= bodyN;
   cy /= bodyN;
-  const keys = new Float64Array(bodyN);
+  const bucket = new Uint32Array(bodyN);
   for (let i = 0; i < bodyN; i++) {
     if ((i + 1) % POINT_BATCH === 0) yield;
     const a = Math.atan2(ys[i] - cy, (xs[i] - cx) * aspect);
-    const q = Math.min(ANGLE_STEPS - 1, Math.max(0, Math.floor(((a + Math.PI) / (2 * Math.PI)) * ANGLE_STEPS)));
-    keys[i] = q * INDEX_STEPS + i;
+    bucket[i] = Math.min(ANGLE_STEPS - 1, Math.max(0, Math.floor(((a + Math.PI) / (2 * Math.PI)) * ANGLE_STEPS)));
   }
   yield;
-  keys.sort();
-  yield;
+  const order = yield* sortByKey(bucket);
   for (let j = 0; j < bodyN; j++) {
     if ((j + 1) % POINT_BATCH === 0) yield;
-    const i = keys[j] % INDEX_STEPS;
+    const i = order[j];
     const o = (base + j) * 4;
     out[o] = xs[i];
     out[o + 1] = ys[i];
@@ -269,22 +329,24 @@ function* sampleShape(
 }
 
 /**
- * The sampling job as a generator: it yields between small units of work so the
- * main-thread fallback can slice it into onIdle tasks; the worker just runs it
- * through. masks[i] is the decoded image for sources[i]. Same seed, same output.
+ * The sampling job as a generator: it yields between small units of work (HEAVY
+ * before a big allocation) so the main-thread fallback can slice it with
+ * runSliced; the worker just runs it through. masks[i] is the decoded image for
+ * sources[i]. Same seed, same output.
  */
 export function* buildTargetsJob(
   masks: readonly Mask[],
   sources: readonly ShapeSource[],
   n: number,
   seed: number = SEED,
-): Generator<void, DotTargets, void> {
+): Generator<JobStep, DotTargets, void> {
   assertPointCount(n);
   if (sources.length === 0 || masks.length !== sources.length) {
     throw new Error("dots: need one decoded mask per shape source");
   }
   const k = sources.length;
   const height = Math.ceil((n * k) / TEX_WIDTH);
+  yield HEAVY; // the texture: 1.16 MB at T2
   const data = new Float32Array(TEX_WIDTH * height * 4);
   const rng = mulberry32(seed);
   const insideOf = new Map<Mask, Int32Array>();
@@ -327,6 +389,68 @@ export function buildTargets(
     const step = job.next();
     if (step.done) return step.value;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Slicing (main-thread fallback). Here rather than in targets.ts so it stays
+// dependency-free and Node-testable with a fake clock and scheduler.
+
+/** What requestIdleCallback hands its callback; null when slices run on a plain timer. */
+export type SliceDeadline = { readonly didTimeout: boolean; timeRemaining(): number };
+/** Schedules one slice; `first` is true only for the job's opening slice. */
+export type SliceScheduler = (slice: (deadline: SliceDeadline | null) => void, first: boolean) => void;
+
+/**
+ * Drive a job in scheduled slices. Each slice always runs one unit, so the job
+ * always moves forward. It then stops before the next unit when:
+ * - the job flagged that unit HEAVY, so heavy units always start a fresh slice;
+ * - elapsed time plus the longest light unit so far would pass SLICE_MS;
+ * - the idle deadline's timeRemaining() minus that longest unit would drop below
+ *   IDLE_RESERVE_MS (ignored once rIC fired on its timeout, or with no deadline).
+ * The longest-unit estimate tracks the device's real speed. A slice therefore stays
+ * near SLICE_MS on any device, unless a single unit takes longer than that alone.
+ */
+export function runSliced<T>(
+  job: Generator<JobStep, T, void>,
+  schedule: SliceScheduler,
+  now: () => number = () => performance.now(),
+): Promise<T> {
+  let heavyNext = false; // the job flagged its next unit as heavy
+  let longest = 0; // longest light unit so far (ms)
+  return new Promise<T>((resolve, reject) => {
+    const slice = (deadline: SliceDeadline | null) => {
+      const idle = deadline && !deadline.didTimeout ? deadline : null;
+      const start = now();
+      let t = start;
+      try {
+        for (let ran = 0; ; ran++) {
+          if (
+            ran > 0 &&
+            (heavyNext ||
+              t - start + longest > SLICE_MS ||
+              (idle !== null && idle.timeRemaining() - longest < IDLE_RESERVE_MS))
+          ) {
+            break;
+          }
+          const heavy = heavyNext;
+          const step = job.next();
+          const after = now();
+          if (!heavy) longest = Math.max(longest, after - t);
+          t = after;
+          if (step.done) {
+            resolve(step.value);
+            return;
+          }
+          heavyNext = step.value === HEAVY;
+        }
+      } catch (err) {
+        reject(err);
+        return;
+      }
+      schedule(slice, false);
+    };
+    schedule(slice, true);
+  });
 }
 
 // ---------------------------------------------------------------------------
