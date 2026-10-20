@@ -93,6 +93,10 @@ export function getScrollVelocity(): number {
 
 export function scrollToTarget(target: string | number | HTMLElement, immediate = false): void {
   if (lenis) {
+    // Lenis clamps to the scroll limit it last measured, and its ResizeObserver runs later: right
+    // after a route change that is still the previous page's height (a restore to 3482 px landed
+    // at the detail page's 1057). Re-measure first.
+    lenis.resize();
     lenis.scrollTo(target, { immediate });
     return;
   }
