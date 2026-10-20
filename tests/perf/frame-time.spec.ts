@@ -9,9 +9,12 @@ import {
   waitForScrollIdle,
 } from "../e2e/helpers";
 
-// Blueprint §12 gate 7 / §8 frame-time budget, read from window.__perf (components/qa/PerfProbe,
-// NEXT_PUBLIC_QA=1 build). Chromium only, "perf" project only, one worker, never alongside a
-// workflow or a dev server. Evidence: test-results/perf/frame-time.json.
+// Blueprint §12 gate 7 / §8 frame-time budget, read from window.__perf (<PerfProbe /> from
+// components/qa/PerfProbe, mounted in app/layout.tsx, in a NEXT_PUBLIC_QA=1 build).
+// Chromium only, one worker, never alongside a workflow or a dev server. The "perf" project is
+// registered only when PW_PERF=1, and then it is the only project (playwright.config.ts):
+//   PW_PERF=1 pnpm exec playwright test --project=perf
+// Evidence: test-results/perf/frame-time.json.
 //
 //   desktop:   rAF interval p95 ≤ 18 ms while scrolling, unthrottled
 //   mobile 4×: rAF interval p90 ≤ 20 ms at 4× CPU throttle on a 390 px touch viewport (T1 tier)

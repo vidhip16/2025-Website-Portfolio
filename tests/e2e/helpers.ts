@@ -36,6 +36,7 @@ export const SEL = {
   motionToggle: "button[data-motion-toggle][aria-pressed]",
   indexLink: "ol#work-index a[data-index-link]",
   mosaic: "[data-mosaic]",
+  mosaicCol: "[data-mosaic] [data-mosaic-col]",
   track: "[data-mosaic] [data-track]",
   canonicalTile: "a[data-tile][data-canonical]",
   cloneGroup: "[data-mosaic] [data-clone]",
@@ -267,26 +268,29 @@ export async function heroProgressY(page: Page, p: number): Promise<number> {
 
 /**
  * Scroll Y that puts a projection-room chapter's midpoint at the viewport centre.
- * The chapter is found by its heading text (content/site.ts `chapters[].title`) and is the
- * heading's nearest ancestor inside #about that is at least 80% of the viewport tall
- * (chapters are min-height 90svh). See sharedRequests: a `[data-chapter="<id>"]` hook
- * would replace this heuristic in one place.
+ * The chapter is `[data-chapter="<id>"]` (content/site.ts `chapters[].id`; requested from the
+ * Phase 5 room owner, see sharedRequests). Until that hook exists it falls back to a heuristic:
+ * the chapter heading (by `chapters[].title`) and its nearest ancestor inside #about that is at
+ * least 80% of the viewport tall (chapters are min-height 90svh).
  */
-export async function chapterMidY(page: Page, title: string): Promise<number> {
-  return page.evaluate((t) => {
+export async function chapterMidY(page: Page, chapter: { id: string; title: string }): Promise<number> {
+  return page.evaluate(({ id, title }) => {
     const room = document.getElementById("about");
     if (!room) throw new Error("#about is missing");
-    const heading = Array.from(room.querySelectorAll<HTMLElement>("h2, h3")).find(
-      (h) => h.textContent?.trim() === t,
-    );
-    if (!heading) throw new Error(`no chapter heading "${t}" in #about`);
-    let el: HTMLElement = heading;
-    while (el.parentElement && el.parentElement !== room && el.offsetHeight < 0.8 * window.innerHeight) {
-      el = el.parentElement;
+    let el = room.querySelector<HTMLElement>(`[data-chapter="${CSS.escape(id)}"]`);
+    if (!el) {
+      const heading = Array.from(room.querySelectorAll<HTMLElement>("h2, h3")).find(
+        (h) => h.textContent?.trim() === title,
+      );
+      if (!heading) throw new Error(`no [data-chapter="${id}"] and no chapter heading "${title}" in #about`);
+      el = heading;
+      while (el.parentElement && el.parentElement !== room && el.offsetHeight < 0.8 * window.innerHeight) {
+        el = el.parentElement;
+      }
     }
     const r = el.getBoundingClientRect();
     return Math.max(0, Math.round(r.top + window.scrollY + r.height / 2 - window.innerHeight / 2));
-  }, title);
+  }, { id: chapter.id, title: chapter.title });
 }
 
 // ── Keyboard ───────────────────────────────────────────────────────────────
@@ -382,23 +386,55 @@ export async function tabUntil(
   );
 }
 
-// ── QA probes (window.__gaze / __dots / __perf, NEXT_PUBLIC_QA=1 only) ─────
+// ── QA probes (window.__gaze / __dots / __perf / __st, NEXT_PUBLIC_QA=1 only) ─
 
-export type ProbeName = "__gaze" | "__dots" | "__perf";
+export type ProbeName = "__gaze" | "__dots" | "__perf" | "__st";
 export type Sample<T> = { t: number; v: T | null };
+
+const PROBES: readonly ProbeName[] = ["__gaze", "__dots", "__perf", "__st"];
+
+/** What exposes each probe in a NEXT_PUBLIC_QA=1 build (for failure messages). */
+const PROBE_SOURCE: Record<ProbeName, string> = {
+  __gaze: "components/hero/PingGaze (Phase 4)",
+  __dots: "the components/dots stage (Phase 5)",
+  __perf: "<PerfProbe /> (components/qa/PerfProbe) mounted once in app/layout.tsx",
+  __st: "the QA-only `window.__st = ScrollTrigger` line in lib/scroll.ts startScroll()",
+};
 
 export async function hasProbe(page: Page, name: ProbeName): Promise<boolean> {
   return page.evaluate((n) => (window as unknown as Record<string, unknown>)[n] !== undefined, name);
 }
 
-/** Fail with a clear message when a probe is missing from a local run (wrong build). */
+/** The QA probes the page currently exposes. */
+export async function presentProbes(page: Page): Promise<ProbeName[]> {
+  return page.evaluate(
+    (names) => names.filter((n) => (window as unknown as Record<string, unknown>)[n] !== undefined),
+    [...PROBES],
+  );
+}
+
+/**
+ * Fail with a precise message when a probe is missing from a local run. A missing probe has two
+ * causes: the server is not a NEXT_PUBLIC_QA=1 build, or the build is right and the code that
+ * exposes the probe is not mounted. Any other probe being present proves the build is right.
+ */
 export async function expectProbe(page: Page, name: ProbeName, timeoutMs = 8000) {
-  await expect
-    .poll(() => hasProbe(page, name), {
+  const found = await page
+    .waitForFunction((n) => (window as unknown as Record<string, unknown>)[n] !== undefined, name, {
       timeout: timeoutMs,
-      message: `window.${name} is missing: build with NEXT_PUBLIC_QA=1 NEXT_DIST_DIR=.next-qa`,
+      polling: 100,
     })
-    .toBe(true);
+    .then(
+      () => true,
+      () => false,
+    );
+  if (found) return;
+  const present = await presentProbes(page);
+  const why = present.length
+    ? `This is a QA build (${present.map((p) => `window.${p}`).join(", ")} present), so the missing piece is ${PROBE_SOURCE[name]}.`
+    : `No QA probe is present at all: either the server is not a NEXT_PUBLIC_QA=1 build ` +
+      `(NEXT_PUBLIC_QA=1 NEXT_DIST_DIR=.next-qa pnpm build), or ${PROBE_SOURCE[name]} is missing.`;
+  expect(present, `window.${name} is missing after ${timeoutMs} ms. ${why}`).toContain(name);
 }
 
 export async function readProbe<T>(page: Page, name: ProbeName): Promise<T> {
@@ -415,7 +451,7 @@ export async function readProbe<T>(page: Page, name: ProbeName): Promise<T> {
  */
 export async function startProbeSampler(
   page: Page,
-  probe: Exclude<ProbeName, "__perf">,
+  probe: Exclude<ProbeName, "__perf" | "__st">,
   opts: { startOn: "wheel" | "scroll" | "pointermove" | "touchstart" | "now"; durationMs: number },
 ) {
   await page.evaluate(

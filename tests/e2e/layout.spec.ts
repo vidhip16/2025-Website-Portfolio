@@ -107,7 +107,7 @@ test.describe("layout", () => {
     await gotoAndSettle(page, "/");
     await settleApp(page);
     for (const ch of chapters) {
-      await scrollToY(page, await chapterMidY(page, ch.title));
+      await scrollToY(page, await chapterMidY(page, ch));
       await expect
         .poll(async () => (await isShown(page.locator(SEL.dots))) || (await isShown(page.locator(SEL.halftone))), {
           timeout: 5000,

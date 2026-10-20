@@ -61,7 +61,7 @@ test.describe("no WebGL", () => {
     await gotoAndSettle(page, "/");
     await settleApp(page);
     for (const ch of chapters) {
-      await scrollToY(page, await chapterMidY(page, ch.title));
+      await scrollToY(page, await chapterMidY(page, ch));
       await expect
         .poll(() => isShown(page.locator(SEL.halftone)), { message: `no halftone in "${ch.title}"` })
         .toBe(true);

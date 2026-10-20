@@ -20,40 +20,90 @@ import type { GazeProbe } from "../../lib/gaze";
 
 // Blueprint §12 gate 5 reduced-motion run: no ScrollTriggers created, mosaic paused, halftones shown.
 // Runs on chromium and webkit.
+//
+// "No ScrollTriggers" is checked in two layers:
+//   1. Engine-agnostic DOM traces, on every run (local and remote): no `.pin-spacer` (pinned
+//      triggers) and no inline transform on any mosaic column (scrubbed parallax triggers).
+//   2. The live count from window.__st, hard on local QA builds: the probe must exist there, so a
+//      trigger that leaves no DOM trace cannot pass silently. lib/scroll.ts exposes it (sharedRequest).
 
 test.use({ reducedMotion: "reduce" });
 
+/** Load the home page with motion off and give every lazy motion controller a chance to start. */
+async function loadAndScrollThrough(page: Page) {
+  await gotoAndSettle(page, "/");
+  await expect(page.locator("html")).toHaveAttribute("data-motion", "off");
+  await settleApp(page);
+  await scrollThrough(page);
+  await settleApp(page);
+}
+
 /**
- * Live ScrollTrigger count when the app exposes `window.__st` (QA builds; see sharedRequests),
- * else null. Accepts a number, an array, or anything with getAll().
+ * Live ScrollTriggers from `window.__st`: a number, an array, or anything with getAll()
+ * (ScrollTrigger itself). Null when the probe is missing or has none of those shapes.
  */
-async function scrollTriggerCount(page: Page): Promise<number | null> {
+async function liveScrollTriggers(page: Page): Promise<{ count: number; triggers: string[] } | null> {
   return page.evaluate(() => {
     const st = (window as unknown as { __st?: unknown }).__st;
     if (st === undefined || st === null) return null;
-    if (typeof st === "number") return st;
-    if (Array.isArray(st)) return st.length;
+    if (typeof st === "number") return { count: st, triggers: [] };
     const getAll = (st as { getAll?: () => unknown[] }).getAll;
-    return typeof getAll === "function" ? getAll.call(st).length : null;
+    const list = Array.isArray(st) ? st : typeof getAll === "function" ? getAll.call(st) : null;
+    if (!list) return null;
+    const describe = (t: unknown) => {
+      const { trigger, vars } = t as { trigger?: Element; vars?: { id?: string; pin?: unknown; scrub?: unknown } };
+      const el = trigger
+        ? `${trigger.tagName.toLowerCase()}${trigger.id ? `#${trigger.id}` : ""}`
+        : "(no trigger element)";
+      return [el, vars?.pin ? "pin" : "", vars?.scrub ? "scrub" : "", vars?.id ? `id=${vars.id}` : ""]
+        .filter(Boolean)
+        .join(" ");
+    };
+    return { count: list.length, triggers: list.map(describe) };
   });
 }
 
 test.describe("reduced motion", () => {
-  test("motion is off and no ScrollTriggers or pins are created", async ({ page }) => {
+  test("motion is off: no pins, no scrubbed mosaic columns, no smooth scroll", async ({ page }, info) => {
     test.slow();
-    await gotoAndSettle(page, "/");
-    await expect(page.locator("html")).toHaveAttribute("data-motion", "off");
+    await loadAndScrollThrough(page);
 
-    // Give the lazy motion controllers every chance to start, across the whole page.
-    await settleApp(page);
-    await scrollThrough(page);
-    await settleApp(page);
-
+    // A pinned ScrollTrigger wraps its element in .pin-spacer.
     await expect(page.locator(".pin-spacer")).toHaveCount(0);
-    const st = await scrollTriggerCount(page);
-    if (st !== null) expect(st, "window.__st reports live ScrollTriggers").toBe(0);
+
+    // A scrubbed parallax trigger (components/work/mosaicMotion setParallax → gsap.fromTo(col, …,
+    // {scrollTrigger: {scrub: true}})) writes an inline transform on its [data-mosaic-col] as soon
+    // as it is created: fromTo renders its start state at once. The columns' own inline style is
+    // only the --off custom property, so any inline transform means a trigger was created.
+    const cols = page.locator(SEL.mosaicCol);
+    info.annotations.push({ type: "mosaic columns checked", description: String(await cols.count()) });
+    await expect
+      .poll(
+        () =>
+          cols.evaluateAll((els) =>
+            els.flatMap((el) => {
+              const t = (el as HTMLElement).style.transform;
+              return t && t !== "none" ? [`column ${el.getAttribute("data-mosaic-col")}: ${t}`] : [];
+            }),
+          ),
+        { message: "mosaic columns carry a scrubbed (ScrollTrigger) transform under reduced motion" },
+      )
+      .toEqual([]);
+
     // Smooth scrolling stays off: Lenis is not created when ambient motion is off.
     await expect(page.locator("html")).not.toHaveClass(/\blenis-smooth\b/);
+  });
+
+  test("window.__st reports zero live ScrollTriggers", async ({ page, baseURL }) => {
+    // Remote builds have no QA probes. On a local QA build the probe is required, never skipped.
+    skipUnlessQaBuild(baseURL);
+    test.slow();
+    await loadAndScrollThrough(page);
+    await expectProbe(page, "__st");
+    const live = await liveScrollTriggers(page);
+    expect(live, "window.__st is not a count, an array or an object with getAll()").not.toBeNull();
+    expect(live!.triggers, `${live!.count} live ScrollTrigger(s) under reduced motion`).toEqual([]);
+    expect(live!.count, "live ScrollTriggers under reduced motion").toBe(0);
   });
 
   test("the mosaic is still: list view by default, or every track at rate 0", async ({ page }) => {
@@ -90,7 +140,7 @@ test.describe("reduced motion", () => {
     await gotoAndSettle(page, "/");
     await settleApp(page);
     for (const ch of chapters) {
-      await scrollToY(page, await chapterMidY(page, ch.title));
+      await scrollToY(page, await chapterMidY(page, ch));
       await expect
         .poll(() => isShown(page.locator(SEL.halftone)), { message: `no halftone in "${ch.title}"` })
         .toBe(true);

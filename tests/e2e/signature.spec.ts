@@ -106,7 +106,7 @@ test.describe("signature interactions", () => {
     const centre = { x: Math.round(vp.width * 0.72), y: Math.round(vp.height / 2) };
 
     for (const ch of chapters) {
-      await scrollToY(page, await chapterMidY(page, ch.title));
+      await scrollToY(page, await chapterMidY(page, ch));
       await expect
         .poll(async () => Math.abs((await readProbe<DotsProbe>(page, "__dots")).shape - ch.shape), {
           timeout: 4000,
@@ -150,7 +150,7 @@ test.describe("signature interactions", () => {
     await settleApp(page);
     await expectProbe(page, "__dots");
     for (const ch of chapters.filter((c) => c.shape >= 2)) {
-      await scrollToY(page, await chapterMidY(page, ch.title));
+      await scrollToY(page, await chapterMidY(page, ch));
       await expect
         .poll(async () => (await readProbe<DotsProbe>(page, "__dots")).shape, {
           timeout: 4000, // scrub: 1

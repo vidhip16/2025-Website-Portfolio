@@ -43,7 +43,7 @@ test.describe("axe", () => {
     // The room tweens the page to night; contrast has to hold there too (moon on night).
     await gotoAndSettle(page, "/");
     await settleApp(page);
-    await scrollToY(page, await chapterMidY(page, chapters[1].title));
+    await scrollToY(page, await chapterMidY(page, chapters[1]));
     await page.waitForTimeout(1100); // scrub: 1
     await audit(page, info, "home-room", "/#about", "#about");
   });
