@@ -27,6 +27,9 @@
   --nav-h: 64px;
 
   --focus: var(--orchid);
+  /* The two contrast bands around the focus ring (see :focus-visible in @layer base). */
+  --focus-inner: var(--ink);
+  --focus-outer: var(--moon);
 
   /* Revision R1 name tokens (hero h1, OG): Instrument Serif, italic "Patel". */
   --name-weight: 400;
@@ -101,6 +104,12 @@
     text-wrap: balance;
   }
 
+  /* Any other Instrument Serif text (links, paragraphs, spans): the font has real roman 400 and
+     italic only, so a stray bold utility must not fake a heavier weight. */
+  .font-display {
+    font-synthesis: none;
+  }
+
   p {
     text-wrap: pretty;
   }
@@ -114,11 +123,22 @@
     text-decoration-thickness: 2px;
   }
 
-  /* 3px orchid focus ring, 2px offset — visible on paper and night. */
+  /*
+   * Two-tone focus ring (WCAG 1.4.11; DECISIONS 31). The 3px brand ring (orchid, lilac on night) is
+   * sandwiched between a 2px ink band in the offset gap and a 2px moon rim. The page colour tweens
+   * paper → night through the hero and the room, and mid-tween neither brand tone reaches 3:1
+   * (orchid 1.7:1 and lilac 1.7:1 at the midpoint). Ink is >= 3.25:1 against the tween up to n = .60 and
+   * moon is >= 3.33:1 from n = .50, so one band always clears 3:1 (worst case 3.89:1 at n = .55).
+   * !important so a component's decorative box-shadow (lit chips, pills) can't hide the indicator.
+   * Forced-colours mode drops box-shadow and keeps the Highlight outline below.
+   */
   :focus-visible {
     outline: 3px solid var(--focus);
     outline-offset: 2px;
     border-radius: 4px;
+    box-shadow:
+      0 0 0 2px var(--focus-inner),
+      0 0 0 7px var(--focus-outer) !important;
   }
   .on-night :focus-visible,
   [data-room="night"] :focus-visible {

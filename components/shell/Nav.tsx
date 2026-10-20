@@ -121,7 +121,7 @@ export function Nav() {
                   className={[
                     "inline-flex min-h-11 items-center text-inherit no-underline decoration-2 underline-offset-[0.3em]",
                     "hover:underline aria-[current=location]:underline",
-                    "max-md:min-h-14 max-md:w-full max-md:font-display max-md:text-[2rem] max-md:font-bold max-md:leading-none",
+                    "max-md:min-h-14 max-md:w-full max-md:font-display max-md:text-[2rem] max-md:font-normal max-md:leading-none",
                     "md:rounded-full md:px-3 md:text-base md:font-semibold",
                   ].join(" ")}
                 >
