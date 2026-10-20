@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
+import { createRequire } from "node:module";
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -100,12 +101,14 @@ let pingBytes = null;
 const pingSrc = "public/ping/ping-body.png";
 if (exists(pingSrc)) {
   try {
-    const { default: sharp } = await import("sharp");
+    // sharp ships with next but pnpm doesn't hoist it; resolve it from next's tree.
+    const sharp = createRequire(createRequire(import.meta.url).resolve("next/package.json"))("sharp");
     const meta = await sharp(pingSrc).metadata();
     // next/image serves roughly the rendered size at DPR 2, capped at the source.
     const h = Math.min(meta.height ?? 1800, 1800);
     pingBytes = (await sharp(pingSrc).resize({ height: h }).avif({ quality: 60 }).toBuffer()).length;
-  } catch {
+  } catch (e) {
+    console.warn("AVIF estimate unavailable, using the PNG size:", e.message);
     pingBytes = fs.statSync(pingSrc).size;
   }
 }
