@@ -17,8 +17,10 @@ const SLEEPING_STILL = null as Still | null;
  */
 const AWAKE_STILL = null as Still | null;
 
-// The global `a { color }` rule is unlayered and beats Tailwind utilities, so
-// footer links take their colour inline (see sharedRequests: @layer base).
+// The global `a { color }` rule in app/globals.css is unlayered and beats
+// Tailwind utilities, so footer links take their colour inline. Once those
+// element rules move into `@layer base` (sharedRequest), `text-paper` on the
+// links can replace this.
 const onInk = { color: "var(--paper)" } as const;
 const linkClass = "inline-flex min-h-11 items-center font-semibold decoration-paper/60";
 

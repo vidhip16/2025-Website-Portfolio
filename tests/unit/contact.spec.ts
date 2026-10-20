@@ -234,6 +234,9 @@ test.describe("contact action: body size", () => {
     expect(state.status).toBe("error");
     expect(state.message).toBe(copy.errors.server);
     expect(state.fieldErrors).toBeUndefined();
+    // The input comes back capped at the field limits, so a no-JS post can be shortened.
+    expect(state.values?.name).toBe(VALID.name);
+    expect(state.values?.message).toHaveLength(CONTACT_LIMITS.message);
     expect(h.calls).toHaveLength(0);
   });
 

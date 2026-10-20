@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
-import { afterLoadIdle } from "@/lib/idle";
 
 /**
- * Closed-eyes favicon (blueprint §1.5, Phase 6 head kit). It may not exist yet:
- * it is probed once and only swapped in if it actually loads.
+ * Closed-eyes favicon (blueprint §1.5, Phase 6 head kit), like the other mascot
+ * stills: null until the file is in public/, and while null only the title
+ * swaps. Nothing is fetched up front, so a missing file can never log a 404.
+ * Lead: set to "/icon-sleep.svg" once public/icon-sleep.svg is on the branch.
  */
-export const SLEEP_ICON = "/icon-sleep.svg";
+export const SLEEP_ICON = null as string | null;
 
 type Saved = {
   title: string;
@@ -17,39 +18,31 @@ type Saved = {
 
 /**
  * Hidden-tab easter egg: while the tab is hidden the title becomes
- * `mascot.sleepTitle` and the favicon her sleeping icon; both are restored
- * when the tab is visible again. Mount once, in the root layout.
+ * `mascot.sleepTitle` and, when SLEEP_ICON is set, the favicon her sleeping
+ * icon; both are restored when the tab is visible again. Mount once, in the
+ * root layout.
  */
 export function TabSleep({ title }: { title: string }) {
   useEffect(() => {
-    let iconReady = false;
-    let probe: HTMLImageElement | null = null;
-    const cancelProbe = afterLoadIdle(() => {
-      probe = new Image();
-      probe.onload = () => {
-        iconReady = true;
-      };
-      probe.src = SLEEP_ICON;
-    });
-
     let saved: Saved | null = null;
 
     const sleep = () => {
       if (saved) return;
       const next: Saved = { title: document.title, icons: [], added: null };
       document.title = title;
-      if (iconReady) {
+      const icon = SLEEP_ICON;
+      if (icon) {
         const links = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]'));
         for (const el of links) {
           next.icons.push({ el, href: el.getAttribute("href"), type: el.getAttribute("type") });
-          el.setAttribute("href", SLEEP_ICON);
+          el.setAttribute("href", icon);
           el.setAttribute("type", "image/svg+xml");
         }
         if (!links.length) {
           const el = document.createElement("link");
           el.rel = "icon";
           el.type = "image/svg+xml";
-          el.href = SLEEP_ICON;
+          el.href = icon;
           document.head.appendChild(el);
           next.added = el;
         }
@@ -73,11 +66,11 @@ export function TabSleep({ title }: { title: string }) {
 
     const onVisibility = () => (document.visibilityState === "hidden" ? sleep() : wake());
     document.addEventListener("visibilitychange", onVisibility);
+    // Opened in a background tab: she is already asleep.
+    if (document.visibilityState === "hidden") sleep();
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
-      cancelProbe();
-      if (probe) probe.onload = null;
       wake();
     };
   }, [title]);

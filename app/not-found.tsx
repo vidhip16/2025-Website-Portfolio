@@ -12,7 +12,8 @@ type Still = { src: string; width: number; height: number };
 const LOST_STILL = null as Still | null;
 
 export const metadata: Metadata = {
-  // The heading minus its full stop; a dedicated notFound.title is a sharedRequest.
+  // The heading minus its full stop, until content/site.ts has notFound.title
+  // (sharedRequest); then: `${notFound.title} | ${person.name}`.
   title: `${notFound.heading.replace(/\.$/, "")} | ${person.name}`,
   robots: { index: false, follow: true },
 };

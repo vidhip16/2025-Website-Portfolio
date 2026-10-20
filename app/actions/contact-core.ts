@@ -100,8 +100,9 @@ export async function handleContact(formData: unknown, deps: ContactDeps): Promi
 
   if (!(formData instanceof FormData)) return serverError;
 
-  // 1. Size.
-  if (formDataBytes(formData) > L.bodyBytes) return serverError;
+  // 1. Size. Echo the (length-capped) input so a no-JS visitor can shorten it
+  // instead of retyping. Copy: errors.server until errors.tooLarge exists.
+  if (formDataBytes(formData) > L.bodyBytes) return { ...serverError, values: echo(formData) };
 
   // 2. Validate.
   const parsed = contactSchema.safeParse({
