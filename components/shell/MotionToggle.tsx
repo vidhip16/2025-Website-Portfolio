@@ -3,24 +3,30 @@
 import { Pause, Play } from "lucide-react";
 import { setPaused, useMotionPrefs } from "@/lib/motion";
 
-/** Pause motion toggle (WCAG 2.2.2). Persisted in localStorage via lib/motion. */
+/**
+ * Pause motion toggle: the WCAG 2.2.2 pause control for every ambient motion
+ * on the site (mosaic drift, dots, smooth scroll). lib/motion persists the
+ * choice in localStorage and sets html[data-motion]; MotionPrefs announces it.
+ *
+ * Rendered in the nav and again beside the work index, so it takes a
+ * className for placement only. Selector contract:
+ * button[data-motion-toggle][aria-pressed].
+ */
 export function MotionToggle({ className = "" }: { className?: string }) {
   const { paused, reduced } = useMotionPrefs();
-  const off = paused || reduced;
+  const Icon = paused ? Play : Pause;
   return (
     <button
       type="button"
-      className={`inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-[0.95rem] font-semibold ${className}`}
+      data-motion-toggle
       aria-pressed={paused}
       onClick={() => setPaused(!paused)}
-      title={reduced && !paused ? "Your system asks for reduced motion" : undefined}
+      title={reduced && !paused ? "Your system asks for reduced motion, so ambient motion is already off" : undefined}
+      className={`inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center gap-2 rounded-full px-3 text-[0.95rem] font-semibold leading-none decoration-2 underline-offset-[0.3em] hover:underline ${className}`}
     >
-      {off ? (
-        <Play aria-hidden size={18} strokeWidth={1.75} strokeLinecap="round" />
-      ) : (
-        <Pause aria-hidden size={18} strokeWidth={1.75} strokeLinecap="round" />
-      )}
-      <span>{paused ? "Play motion" : "Pause motion"}</span>
+      <Icon aria-hidden size={18} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
+      {/* Below 360px only the icon shows; the name stays for assistive tech. */}
+      <span className="max-xs:sr-only">{paused ? "Play motion" : "Pause motion"}</span>
     </button>
   );
 }
