@@ -231,6 +231,25 @@ export const work = {
   intro: "Six projects, each built to solve one specific problem.",
   listToggle: "View as list",
   mosaicToggle: "View as mosaic",
+  /** Interface labels for the mosaic and the /work/[slug] pages (§6.3, §6.4). */
+  ui: {
+    /** Cursor bubble over a mosaic tile (fine pointers only). */
+    viewBubble: "View",
+    /** Detail page: heading above the project's tags. */
+    builtWith: "Built with",
+    /** Detail page: the repository button. */
+    viewCode: "View code on GitHub",
+    /** Detail page: returns to the mosaic at the stored scroll position. */
+    back: "Back to the gallery",
+    /** Detail page: heading above the regraded original artwork. */
+    original: "Original artwork",
+    /** Detail page: prev/next labels and their landmark name. */
+    prev: "Previous project",
+    next: "Next project",
+    moreProjects: "More projects",
+    /** Alt text of the /work/[slug] Open Graph card. */
+    ogAlt: `A project from ${person.name}'s portfolio`,
+  },
 } as const;
 
 export const contact = {

@@ -2,13 +2,12 @@ import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
-import { person } from "@/content/site";
+import { person, work } from "@/content/site";
 import { getProject, getProjects, type Project } from "@/content/projects";
-import { workUi } from "@/components/work/copy";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = workUi.ogAlt;
+export const alt = work.ui.ogAlt;
 
 // Prerender one card per verified project (re-exported to the image route).
 export function generateStaticParams() {
