@@ -1,42 +1,64 @@
-import Image from "next/image";
-import { about, chapters, onlyVerified } from "@/content/site";
+import { about, chapters, mascot, onlyVerified, type Skill } from "@/content/site";
 import { getProjects } from "@/content/projects";
+import { Chapter, type AboutData, type ChipData } from "./Chapter";
+import { DotBubble } from "./DotBubble";
+import { RoomScroll } from "./RoomScroll";
+import s from "./room.module.css";
 
-// Phase 1 stub: server copy only. Phase 5 adds the dot stage, chips and bubbles.
+/**
+ * Derived bubble for a skill with a project tile (content/site.ts `Skill.bubble`: "Derived when
+ * omitted", e.g. "used in Type Racer"). Requested as a content string (sharedRequests).
+ */
+const USED_IN = "used in";
+
+/**
+ * The projection room (#about, blueprint §3.2 + PHASE5 "Workstream R" + Revision R1).
+ *
+ * Server-rendered: four chapters from content (About, Build, Data and systems, Support), each a
+ * `[data-chapter]` at least 90svh tall, the text column from the gutter to 52vw on desktop. Only
+ * verified content gets this far, and only resolved plain data reaches the client islands.
+ * #about has no background fill: the night is body's --bg, so the fixed dot canvas behind main shows
+ * through. Client islands: SkillChip (per chip), DotBubble (the room anchor + the bubble) and
+ * RoomScroll (roomInView, then the lazy scroll controller or the reduced-motion hard cuts).
+ */
 export function ProjectionRoom() {
-  const projects = getProjects();
-  const titleOf = (slug?: string) => projects.find((p) => p.slug === slug)?.title;
+  const titles = new Map(getProjects().map((p) => [p.slug, p.title] as const));
+
+  const chip = (skill: Skill): ChipData => {
+    const title = skill.project ? titles.get(skill.project) : undefined;
+    const slug = title ? skill.project : undefined;
+    return {
+      name: skill.name,
+      slug,
+      href: slug ? undefined : skill.href,
+      bubble: skill.bubble ?? (title ? `${USED_IN} ${title}` : undefined),
+    };
+  };
+
+  const aboutData: AboutData = {
+    heading: about.heading,
+    bio: onlyVerified(about.bio),
+    photo: about.photo,
+  };
+
   return (
-    <section id="about" aria-labelledby="about-title" className="px-[var(--gutter)] py-24">
-      {chapters.map((ch) => (
-        <div key={ch.id} id={ch.id === "about" ? undefined : `chapter-${ch.id}`} className="max-w-[68ch] py-12">
-          {ch.id === "about" ? (
-            <>
-              <h2 id="about-title" className="text-5xl">{about.heading}</h2>
-              {onlyVerified(about.bio).map((l) => (
-                <p key={l.text} className="mt-4">{l.text}</p>
-              ))}
-              <figure className="mt-8 w-[min(320px,80vw)] -rotate-2 border-[10px] border-paper bg-paper shadow-lg">
-                <Image src={about.photo.src} width={about.photo.width} height={about.photo.height} alt={about.photo.alt} sizes="320px" />
-                <figcaption className="pt-2 text-sm text-ink">{about.photo.caption}</figcaption>
-              </figure>
-            </>
-          ) : (
-            <>
-              <h3 className="text-4xl">{ch.title}</h3>
-              {ch.lede?.verified && <p className="mt-3">{ch.lede.text}</p>}
-              <ul className="mt-4 flex flex-wrap gap-2">
-                {onlyVerified(ch.skills).map((s) => (
-                  <li key={s.name} className="rounded-full border-2 border-current px-3 py-1 text-base">
-                    {s.name}
-                    {titleOf(s.project) && <span className="sr-only-soft">, used in {titleOf(s.project)}</span>}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
+    <section id="about" aria-labelledby="about-title" className={s.room}>
+      <div className={`${s.atmos} grain`} aria-hidden="true">
+        <div className={s.beam} />
+      </div>
+
+      {chapters.map((ch, i) => (
+        <Chapter
+          key={ch.id}
+          chapter={ch}
+          numeral={i + 1}
+          chips={onlyVerified(ch.skills).map(chip)}
+          about={ch.id === "about" ? aboutData : undefined}
+        />
       ))}
+
+      <DotBubble />
+      <RoomScroll boopLine={mascot.boopLine} />
     </section>
   );
 }
