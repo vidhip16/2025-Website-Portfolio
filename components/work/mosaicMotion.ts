@@ -48,7 +48,16 @@ type Track = {
   written: number;
 };
 
-type Pupil = { el: SVGElement; svg: SVGSVGElement; cx: number; cy: number; x: number; y: number };
+type Pupil = {
+  el: SVGElement;
+  svg: SVGSVGElement;
+  cx: number;
+  cy: number;
+  /** Max travel in viewbox units (per eye: the domes differ in size). */
+  travel: number;
+  x: number;
+  y: number;
+};
 
 export function startMosaicMotion(section: HTMLElement): () => void {
   const mosaic = section.querySelector<HTMLElement>("[data-mosaic]");
@@ -66,7 +75,9 @@ export function startMosaicMotion(section: HTMLElement): () => void {
 
   const pupils: Pupil[] = [...mosaic.querySelectorAll<SVGElement>("[data-pupil]")].flatMap((el) => {
     const svg = el.ownerSVGElement;
-    return svg ? [{ el, svg, cx: Number(el.dataset.cx), cy: Number(el.dataset.cy), x: 0, y: 0 }] : [];
+    if (!svg) return [];
+    const travel = Number(el.dataset.travel) || PUPIL_TRAVEL;
+    return [{ el, svg, cx: Number(el.dataset.cx), cy: Number(el.dataset.cy), travel, x: 0, y: 0 }];
   });
 
   const bubbleEl = wrap.querySelector<HTMLElement>("[data-view-bubble]");
@@ -152,7 +163,7 @@ export function startMosaicMotion(section: HTMLElement): () => void {
       const dx = pointer.x - (r.left + p.cx * s);
       const dy = pointer.y - (r.top + p.cy * s);
       const d = Math.hypot(dx, dy) || 1;
-      const reach = Math.min(1, d / PUPIL_REACH) * PUPIL_TRAVEL;
+      const reach = Math.min(1, d / PUPIL_REACH) * p.travel;
       const k = ok ? PUPIL_LERP : 1;
       const nx = p.x + ((dx / d) * reach - p.x) * k;
       const ny = p.y + ((dy / d) * reach - p.y) * k;

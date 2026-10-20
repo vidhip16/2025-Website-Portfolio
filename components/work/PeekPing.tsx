@@ -1,48 +1,55 @@
-import { EYE_R, EYES, PEEK_VIEWBOX, PUPIL_R } from "./peekGeometry";
+import Image from "next/image";
+import { EYES, PEEK_VIEWBOX, pupilRadius, pupilTravel } from "./peekGeometry";
 import styles from "./work.module.css";
 
 /**
- * Mascot art for the peeking tile. null = the neutral lilac placeholder head
- * drawn below. When the mascot art exists, set this to its public path (a
- * head cut-out at 200:150, bottom edge flush) and the code-drawn eyes keep
- * working on top of it (move EYES in peekGeometry.ts to match the art).
- * TODO(lead): swap in the mascot art after CP1 / H7.
+ * The peeking mascot art: 575×600 px with blank eye domes (no pupils), so the
+ * code-drawn pupils below are her only pupils. Its geometry is in peekGeometry.ts.
  */
-export const PEEK_ART_SRC: string | null = null;
+export const PEEK_ART_SRC = "/ping/ping-peek.webp";
+const PEEK_ART = { width: 575, height: 600 } as const;
+
+/** The art is 78% of a tile wide (see .peekArt in work.module.css). */
+const PEEK_SIZES = "(min-width: 1600px) 12vw, (min-width: 1024px) 16vw, 36vw";
+
+/** Ping's rendered eyes: plum pupil, one white highlight at its upper left (§1.1). */
+const PLUM = "#23162E";
 
 /**
  * The easter egg on one solid tile: the mascot peeking over the bottom edge,
- * with two SVG pupil discs that follow the cursor. The lazy motion controller
- * (mosaicMotion.ts) moves the pupils through `data-pupil`.
+ * with two SVG pupils that follow the cursor. The lazy motion controller
+ * (mosaicMotion.ts) moves each `data-pupil` group (disc and highlight together)
+ * up to its `data-travel`. Decorative: the tile is aria-hidden, and the image
+ * has an empty alt.
  */
 export function PeekPing() {
   return (
     <div className={styles.peek} data-peek>
-      <svg
-        viewBox={`0 0 ${PEEK_VIEWBOX.w} ${PEEK_VIEWBOX.h}`}
-        width={PEEK_VIEWBOX.w}
-        height={PEEK_VIEWBOX.h}
-        aria-hidden="true"
-        focusable="false"
-      >
-        {PEEK_ART_SRC ? (
-          <image href={PEEK_ART_SRC} width={PEEK_VIEWBOX.w} height={PEEK_VIEWBOX.h} />
-        ) : (
-          <>
-            <path d="M14 150 C14 66 54 22 100 22 C146 22 186 66 186 150 Z" fill="var(--lilac)" />
-            <ellipse cx="52" cy="116" rx="13" ry="8" fill="var(--bubblegum)" opacity="0.55" />
-            <ellipse cx="148" cy="116" rx="13" ry="8" fill="var(--bubblegum)" opacity="0.55" />
-          </>
-        )}
-        {EYES.map((e) => (
-          <g key={e.cx}>
-            <circle cx={e.cx} cy={e.cy} r={EYE_R} fill="#fff" />
-            <circle data-pupil data-cx={e.cx} data-cy={e.cy} cx={e.cx} cy={e.cy} r={PUPIL_R} fill="var(--ink)" />
-            {/* One fixed highlight, upper left (§1.1). */}
-            <circle cx={e.cx - 7} cy={e.cy - 8} r="3.5" fill="#fff" opacity="0.9" />
-          </g>
-        ))}
-      </svg>
+      <div className={styles.peekArt}>
+        <Image src={PEEK_ART_SRC} width={PEEK_ART.width} height={PEEK_ART.height} alt="" sizes={PEEK_SIZES} />
+        <svg
+          viewBox={`0 0 ${PEEK_VIEWBOX.w} ${PEEK_VIEWBOX.h}`}
+          aria-hidden="true"
+          focusable="false"
+          className={styles.peekEyes}
+        >
+          {EYES.map((e) => {
+            const pr = pupilRadius(e.r);
+            return (
+              <g
+                key={e.cx}
+                data-pupil=""
+                data-cx={e.cx}
+                data-cy={e.cy}
+                data-travel={pupilTravel(e.r).toFixed(2)}
+              >
+                <circle cx={e.cx} cy={e.cy} r={pr} fill={PLUM} />
+                <circle cx={e.cx - pr * 0.35} cy={e.cy - pr * 0.42} r={pr * 0.27} fill="#fff" />
+              </g>
+            );
+          })}
+        </svg>
+      </div>
     </div>
   );
 }

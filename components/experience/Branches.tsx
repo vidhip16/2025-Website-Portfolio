@@ -5,12 +5,13 @@ import { BranchesMotion } from "./BranchesMotion";
 
 const MASK_ID = "branches-draw";
 
-/** "2023 to present" / "2023 to 2026" */
+/** "2023 to present" / "2023 to 2026", words from `experience.dates`. */
 function Years({ role }: { role: Role }) {
+  const { to, present } = experience.dates;
   return (
     <>
-      <time dateTime={String(role.start)}>{role.start}</time> to{" "}
-      {role.end === null ? "present" : <time dateTime={String(role.end)}>{role.end}</time>}
+      <time dateTime={String(role.start)}>{role.start}</time> {to}{" "}
+      {role.end === null ? present : <time dateTime={String(role.end)}>{role.end}</time>}
     </>
   );
 }
@@ -71,7 +72,7 @@ export function Branches() {
                 <p className="text-[0.95rem] font-semibold leading-6 text-ink/75 lg:sr-only">
                   {experience.lanes[role.lane]}
                 </p>
-                <p className="mt-1 font-display text-[1.6rem] font-bold leading-tight lg:mt-0">
+                <p className="mt-1 font-display text-[1.875rem] leading-tight tracking-[-0.01em] lg:mt-0">
                   <Years role={role} />
                 </p>
                 <h3 className="mt-2 text-lg leading-snug">

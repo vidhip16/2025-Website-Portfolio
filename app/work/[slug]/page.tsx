@@ -142,7 +142,7 @@ export default async function ProjectPage({ params }: Props) {
               className="group flex min-h-11 flex-col gap-1 text-ink no-underline"
             >
               <span className="text-base">{work.ui.prev}</span>
-              <span className="font-display text-[clamp(1.5rem,2.6vw,2.25rem)] font-bold leading-tight group-hover:underline">
+              <span className="font-display text-[clamp(1.75rem,3vw,2.75rem)] leading-[1.05] tracking-[-0.015em] group-hover:underline">
                 {prev.title}
               </span>
             </Link>
@@ -152,7 +152,7 @@ export default async function ProjectPage({ params }: Props) {
               className="group flex min-h-11 flex-col gap-1 text-ink no-underline sm:items-end sm:text-right"
             >
               <span className="text-base">{work.ui.next}</span>
-              <span className="font-display text-[clamp(1.5rem,2.6vw,2.25rem)] font-bold leading-tight group-hover:underline">
+              <span className="font-display text-[clamp(1.75rem,3vw,2.75rem)] leading-[1.05] tracking-[-0.015em] group-hover:underline">
                 {next.title}
               </span>
             </Link>

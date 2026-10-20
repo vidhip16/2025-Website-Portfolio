@@ -7,12 +7,17 @@ import styles from "./work.module.css";
 
 const SIZES = "(max-width:1024px) 45vw, 20vw";
 
-/**
- * Mascot sticker art for the solid tiles (H7). null entries draw the neutral
- * placeholder below. Set public paths here once the stickers exist.
- * TODO(lead): fill with H7 sticker paths after CP1.
- */
-export const STICKER_ART: readonly (string | null)[] = [null, null, null, null];
+type Art = { src: string; width: number; height: number };
+
+/** Mascot sticker art for the solid tiles (H7), die-cut, all 512 px tall. */
+export const STICKER_ART: readonly Art[] = [
+  { src: "/ping/stickers/wave.webp", width: 355, height: 512 },
+  { src: "/ping/stickers/heart.webp", width: 348, height: 512 },
+  { src: "/ping/stickers/thinking.webp", width: 324, height: 512 },
+  { src: "/ping/stickers/surprised.webp", width: 338, height: 512 },
+];
+/** A sticker is 54% of a tile wide (see .sticker img in work.module.css). */
+const STICKER_SIZES = "(min-width: 1600px) 9vw, (min-width: 1024px) 11vw, 26vw";
 
 const STICKER_TILT = ["-7deg", "5deg", "-3deg", "8deg"];
 const TAG_TILT = ["-4deg", "2.5deg", "-1.5deg"];
@@ -98,23 +103,13 @@ export function Tile({ cell, clone }: Props) {
   );
 }
 
+/** Decorative: solid tiles are aria-hidden, so the sticker has an empty alt. */
 function Sticker({ index }: { index: number }) {
-  const src = STICKER_ART[index % STICKER_ART.length] ?? null;
+  const art = STICKER_ART[index % STICKER_ART.length];
   const style = { "--tilt": STICKER_TILT[index % STICKER_TILT.length] } as CSSProperties;
   return (
     <div className={styles.sticker} style={style}>
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element -- small decorative sticker in an aria-hidden tile
-        <img src={src} alt="" width={240} height={240} loading="lazy" decoding="async" />
-      ) : (
-        // Neutral placeholder: a die-cut sticker with a lilac blob.
-        <svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true" focusable="false">
-          <circle cx="60" cy="60" r="56" fill="var(--paper)" />
-          <path d="M28 92 C24 58 40 30 60 30 C80 30 96 58 92 92 Z" fill="var(--lilac)" />
-          <circle cx="50" cy="64" r="4" fill="var(--ink)" />
-          <circle cx="70" cy="64" r="4" fill="var(--ink)" />
-        </svg>
-      )}
+      <Image src={art.src} width={art.width} height={art.height} alt="" sizes={STICKER_SIZES} />
     </div>
   );
 }

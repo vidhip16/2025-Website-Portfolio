@@ -6,10 +6,9 @@ type Still = { src: string; width: number; height: number };
 
 /**
  * Mobile-only static mascot sticker (blueprint §3.5: "On mobile, a static Ping
- * sticker replaces the dots"). Asset H7 does not exist yet, so nothing renders.
- * Lead: set to e.g. { src: "/ping/sticker-wave.webp", width: 480, height: 480 }.
+ * sticker replaces the dots"): asset H7, Ping with an envelope.
  */
-const CONTACT_STICKER = null as Still | null;
+const CONTACT_STICKER: Still = { src: "/ping/stickers/envelope.webp", width: 321, height: 512 };
 
 const linkClass = "inline-flex min-h-11 items-center font-semibold";
 
@@ -32,12 +31,12 @@ export function Contact() {
               </li>
               <li>
                 <a className={linkClass} href={person.linkedin} rel="noopener noreferrer">
-                  LinkedIn
+                  {contact.links.linkedin}
                 </a>
               </li>
               <li>
                 <a className={linkClass} href={person.github} rel="noopener noreferrer">
-                  GitHub
+                  {contact.links.github}
                 </a>
               </li>
               <li className="flex min-h-11 items-center">{person.location}</li>
@@ -51,19 +50,27 @@ export function Contact() {
             className="mt-12 hidden aspect-[4/3] w-full max-w-[360px] lg:block"
           />
 
-          {CONTACT_STICKER && (
-            <Image
-              src={CONTACT_STICKER.src}
-              width={CONTACT_STICKER.width}
-              height={CONTACT_STICKER.height}
-              alt=""
-              sizes="40vw"
-              className="mt-10 h-auto w-[min(40vw,200px)] rotate-[-4deg] lg:hidden"
-            />
-          )}
+          {/* Decorative: the heading and links already say what this section is. */}
+          <Image
+            src={CONTACT_STICKER.src}
+            width={CONTACT_STICKER.width}
+            height={CONTACT_STICKER.height}
+            alt=""
+            sizes="(min-width: 500px) 160px, 32vw"
+            className="mt-10 h-auto w-[min(32vw,160px)] rotate-[-4deg] drop-shadow-[0_10px_14px_rgb(35_22_46/0.18)] lg:hidden"
+          />
         </div>
 
-        <ContactForm copy={{ name: f.name, email: f.email, message: f.message, submit: f.submit, pending: f.pending }} />
+        <ContactForm
+          copy={{
+            name: f.name,
+            email: f.email,
+            message: f.message,
+            submit: f.submit,
+            pending: f.pending,
+            counter: f.counter,
+          }}
+        />
       </div>
     </section>
   );
