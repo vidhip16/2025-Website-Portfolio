@@ -31,6 +31,8 @@ export function WorkClient({ slugs }: { slugs: readonly string[] }) {
   const router = useRouter();
 
   useLayoutEffect(() => {
+    // The stored spot is relative to #work, so this is right with or without the hero pin
+    // (heroScrollMotion adds the pin's length later if it isn't there yet).
     const y = takeRestore();
     if (y !== null) window.scrollTo({ top: y, behavior: "instant" });
   }, []);
