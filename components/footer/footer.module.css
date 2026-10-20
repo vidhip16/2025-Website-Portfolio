@@ -1,0 +1,53 @@
+/* Footer depth (blueprint R1, "every new surface gets intentional depth"): grain plus three
+   night-tuned glows behind the content, the same back-to-front idea as the hero and the detail
+   hero (components/work/detail.module.css).
+     z0  .backdrop  grain (the global .grain class) + glows: arcade at the top left, a lilac halo
+                    behind the outlined name and the sleeping mascot, bubblegum at the bottom right
+     z1  the footer's content
+   Opacity and radial gradients only: one paint, no extra compositing. Pure CSS Module (no
+   Tailwind here). */
+
+.backdrop {
+  --halo-x: 30%;
+  --halo-y: 68%;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 46% 34% at 0% 0%,
+      color-mix(in srgb, var(--arcade) 10%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 44% 50% at 100% 100%,
+      color-mix(in srgb, var(--bubblegum) 20%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 50% 42% at var(--halo-x) var(--halo-y),
+      color-mix(in srgb, var(--lilac) 20%, transparent),
+      color-mix(in srgb, var(--lilac) 7%, transparent) 55%,
+      transparent
+    );
+}
+
+/* One column below 1024 px: the name and the mascot sit lower and wider. */
+@media (max-width: 1023.98px) {
+  .backdrop {
+    --halo-x: 42%;
+    --halo-y: 72%;
+  }
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+}
+
+@media (forced-colors: active) {
+  .backdrop {
+    display: none;
+  }
+}

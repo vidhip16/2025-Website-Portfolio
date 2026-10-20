@@ -3,6 +3,7 @@ import { contact, footer, mascot, nav, person } from "@/content/site";
 import { Year } from "./Year";
 import { Vitals } from "./Vitals";
 import { BackToTop } from "./BackToTop";
+import styles from "./footer.module.css";
 
 type Still = { src: string; width: number; height: number };
 
@@ -37,7 +38,9 @@ export function Footer() {
 
   return (
     <footer className="on-night group relative overflow-clip bg-ink px-[var(--gutter)] pb-10 pt-20 text-paper lg:pt-28">
-      <div className="mx-auto max-w-[1600px]">
+      {/* R1 depth: grain and night glows behind everything (footer.module.css). */}
+      <div aria-hidden="true" className={`${styles.backdrop} grain`} />
+      <div className={`${styles.content} mx-auto max-w-[1600px]`}>
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
           <p className="max-w-[20ch] font-display text-[clamp(2.25rem,4.6vw,3.75rem)] italic leading-[1] tracking-[-0.015em] text-moon">
             {footer.line}
