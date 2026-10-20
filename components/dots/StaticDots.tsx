@@ -8,7 +8,16 @@ import type { DotsProbe } from "@/lib/gaze";
 import { DESKTOP_MQ, useMotionPrefs } from "@/lib/motion";
 import type { TierReason } from "@/lib/quality";
 import { stage, type StageState } from "@/lib/stage";
-import { LAST_SHAPE, clamp, clamp01, halftoneFrame, roomRegion, shapeRect } from "./layout";
+import {
+  LAST_SHAPE,
+  clamp,
+  clamp01,
+  contactRegion,
+  halftoneFrame,
+  roomRegion,
+  shapeRect,
+  type BoxLike,
+} from "./layout";
 
 // T0 (blueprint §5.5, §5.6): static halftones in place of the dot cloud, pre-rendered by
 // scripts/render_halftones.py into public/dots/halftone-{k}{-night}.webp (640², each shape fitted
@@ -16,12 +25,15 @@ import { LAST_SHAPE, clamp, clamp01, halftoneFrame, roomRegion, shapeRect } from
 //   - motion on (no WebGL2, Save-Data, a lost context, the governor): they crossfade with
 //     `stage.dots.shape` and `stage.dots.opacity`, which the room and contact scrubs write;
 //   - reduced motion or Pause: one halftone per chapter, hard cuts (the scrubs don't run then).
-// The room's halftone sits where the live shapes sit (fixed, behind main, first child of <body>);
-// the envelope sits inside `[data-dots-anchor="contact"]` (desktop; phones show F's sticker).
+// The room's halftone sits where the live shapes sit: in the box of `[data-dots-anchor="room"]`, as
+// the engine lays them out (fixed, behind main, first child of <body>). The envelope sits inside
+// `[data-dots-anchor="contact"]` (desktop; phones show F's sticker) and, once a message is sent,
+// gives way to Ping seated: the renderer's stream-and-reform, as a crossfade (a cut under hard cuts).
 
 const QA = process.env.NEXT_PUBLIC_QA === "1";
 const PING_ASPECT = gaze.box.w / gaze.box.h;
-/** Seat scale of shape 1 (public/dots/shapes.json); icons are 512² masks at scale 1. */
+/** Ping seated (shape 1) and her scale in public/dots/shapes.json; icons are 512² masks at scale 1. */
+const SEAT_SHAPE = 1;
 const SEAT_SCALE = 0.6;
 /** The About chapter's shape; later chapters follow in order (content/site.ts `chapters[].shape`). */
 const FIRST_ROOM_SHAPE = 1;
@@ -130,10 +142,57 @@ function useBodyHost(): HTMLElement {
   return host;
 }
 
-/** `[data-dots-anchor="contact"]` (components/contact/Contact.tsx), looked up once on mount. */
-function useContactAnchor(): HTMLElement | null {
-  const [anchor] = useState(() => document.querySelector<HTMLElement>('[data-dots-anchor="contact"]'));
+/**
+ * `[data-dots-anchor="room"]` (components/room/DotBubble.tsx, the box the engine lays shapes 1 to 4
+ * in) or `[data-dots-anchor="contact"]` (components/contact/Contact.tsx), looked up once on mount.
+ */
+function useAnchor(name: "room" | "contact"): HTMLElement | null {
+  const [anchor] = useState(() => document.querySelector<HTMLElement>(`[data-dots-anchor="${name}"]`));
   return anchor;
+}
+
+/**
+ * An element's box, re-read when it resizes or the window does (the room anchor is position: fixed,
+ * so its box moves only with the viewport; the contact anchor's size is all that is used). Read on
+ * those events only, never per scroll frame.
+ */
+function useBox(el: HTMLElement | null): BoxLike | null {
+  const [box, setBox] = useState<BoxLike | null>(null);
+  useEffect(() => {
+    if (!el) return;
+    const read = () => {
+      const { left, top, width, height } = el.getBoundingClientRect();
+      setBox((prev) =>
+        prev && prev.left === left && prev.top === top && prev.width === width && prev.height === height
+          ? prev
+          : { left, top, width, height },
+      );
+    };
+    // Observing reports the first box too.
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    window.addEventListener("resize", read, { passive: true });
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", read);
+    };
+  }, [el]);
+  return box;
+}
+
+/**
+ * A message was sent (ContactForm's "contact:success"). The renderer streams the envelope off and
+ * reforms Ping on its own clock; T0 has no renderer, so the contact anchor swaps the halftone.
+ * Kept for the life of the layer, as roomStill keeps its own `sent`.
+ */
+function useSent(): boolean {
+  const [sent, setSent] = useState(false);
+  useEffect(() => {
+    const on = () => setSent(true);
+    window.addEventListener("contact:success", on);
+    return () => window.removeEventListener("contact:success", on);
+  }, []);
+  return sent;
 }
 
 export default function StaticDots({ reason }: { reason: TierReason }) {
@@ -145,7 +204,10 @@ export default function StaticDots({ reason }: { reason: TierReason }) {
   const centre = useCentreChapter();
   const roomInView = useInView("about");
   const host = useBodyHost();
-  const anchor = useContactAnchor();
+  const anchor = useAnchor("contact");
+  const roomBox = useBox(useAnchor("room"));
+  const contactBox = useBox(anchor);
+  const sent = useSent();
 
   // Which shapes, and how much of each.
   const scrubbed = clamp(Number.isFinite(dots.shape) ? dots.shape : 0, FIRST_ROOM_SHAPE, LAST_SHAPE);
@@ -163,7 +225,9 @@ export default function StaticDots({ reason }: { reason: TierReason }) {
   }, [hardCuts, centre.shape, scrubbed]);
 
   const [vw, vh, desktop] = view.split("x").map(Number);
-  const region = roomRegion(vw, vh, desktop !== 1);
+  // The anchor's box wins, exactly as in the engine; the viewport maths only stands in for a
+  // missing or empty one (roomRegion ignores a box under 2 px).
+  const region = roomRegion(vw, vh, desktop !== 1, roomBox);
   const layer = (k: number, opacity: number) => {
     if (k > 4 || opacity <= 0.001) return null;
     const ping = k <= 1;
@@ -203,21 +267,61 @@ export default function StaticDots({ reason }: { reason: TierReason }) {
     host,
   );
 
-  // The envelope fills the anchor (hidden with it below 1024 px, where F's sticker stands in).
+  // The envelope fills the anchor (hidden with it below 1024 px, where F's sticker stands in). After
+  // a send it gives way to Ping seated, laid out as the engine does (the contact region, shape 1 at
+  // its seat scale), so the live and the static state agree. The scrub's envelope opacity multiplies
+  // both images; the swap is a crossfade, or a plain cut under hard cuts. The seat is taller than
+  // the anchor, so it sits behind the page's text (z-index -1), like the canvas does.
+  const seatRegion =
+    contactBox && contactRegion({ left: 0, top: 0, width: contactBox.width, height: contactBox.height });
+  const seat = seatRegion && halftoneFrame(shapeRect(seatRegion, PING_ASPECT, SEAT_SCALE, true));
+  const swap = hardCuts ? "none" : "opacity 500ms var(--ease-quint)";
   const contact =
     anchor &&
     envelope > 0.001 &&
     createPortal(
-      <Image
-        src={src(LAST_SHAPE, false)}
-        alt=""
-        width={640}
-        height={640}
-        unoptimized
-        draggable={false}
-        data-halftone=""
-        style={{ display: "block", width: "100%", height: "100%", objectFit: "contain", opacity: envelope }}
-      />,
+      <div style={{ position: "relative", width: "100%", height: "100%" }}>
+        <Image
+          src={src(LAST_SHAPE, false)}
+          alt=""
+          width={640}
+          height={640}
+          unoptimized
+          draggable={false}
+          data-halftone=""
+          style={{
+            display: "block",
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            opacity: sent ? 0 : envelope,
+            transition: swap,
+          }}
+        />
+        {seat && (
+          <Image
+            src={src(SEAT_SHAPE, false)}
+            alt=""
+            width={640}
+            height={640}
+            unoptimized
+            draggable={false}
+            data-halftone=""
+            style={{
+              position: "absolute",
+              zIndex: -1,
+              left: seat.left,
+              top: seat.top,
+              width: seat.size,
+              height: seat.size,
+              maxWidth: "none",
+              pointerEvents: "none",
+              opacity: sent ? envelope : 0,
+              transition: swap,
+            }}
+          />
+        )}
+      </div>,
       anchor,
     );
 

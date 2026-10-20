@@ -4,11 +4,12 @@
 // (desktop ≥ 1024 px / phones, motionOK only); reduced motion and Pause use roomStill.ts instead.
 //
 // ScrollTriggers (no animations; each one reports its progress into a channel):
-//   enter      #about "top bottom" → "top 40%"        paper → night (phones; on desktop the hero
-//                                                       pin has already done it, so this holds night)
+//   enter      #about "top bottom" → "top 40%"        paper → night from its midpoint (phones; on
+//                                                       desktop the hero pin has already done it)
 //   morph k    one per chapter boundary, over the middle 40% between the two chapter midpoints
 //              (midpoint = the scroll position that puts the chapter's centre at the viewport centre)
 //   exit       #about "bottom bottom" → "bottom 70%"  the last 30vh: dots fade out, night → paper
+//                                                       from its midpoint
 //   contact    [data-dots-anchor="contact"] "top bottom" → "top 60%" (desktop only): the 40vh in
 //              which the anchor comes on screen. Scatter → envelope: shape 4 → 5 with disperse 1
 //              (the curl noise peaks mid-morph), opacity 0 → 1 over its first 35%.
@@ -18,16 +19,17 @@
 // ScrollTrigger refresh (see onRefresh).
 //
 // State written while the room or contact zone is active:
-//   body --bg/--fg   interpolate(paper → night) at n = max(heroNight, enter) × (1 − exit), where
-//                    heroNight follows the hero's own tween (heroProgress .5 → 1, desktop) so the two
-//                    writers always agree; body[data-room="night"] while n ≥ .5 (the tween midpoint,
-//                    as in the hero), so it is removed at the exit midpoint. Phones (< 1024 px):
-//                    body flips at n = .5 and a fixed veil's opacity carries the blend (paintPhone)
+//   page palette    night while n = max(heroNight, enter) × (1 − exit) ≥ .5, else paper. heroNight
+//                    follows the hero's own span (heroProgress .5 → 1, desktop), so the two writers
+//                    always agree. A change is a short time-based fade between the two complete
+//                    palettes (palette.ts, shared with the hero), never a scrubbed mix: a mix of text
+//                    and ground rests mid-way under 4.5 : 1 contrast (WCAG 1.4.3). The same switch
+//                    sets body[data-room="night"] (the lilac focus ring).
 //   stage.dots       room:    shape 1 + Σ morph_k, disperse 1, opacity 1 − exit, glow n
 //                    contact: shape 4 → 5 (then the success sequence), disperse 1, glow 0
 //   stage.anchor     "room" | "contact" (roomStage.ts; a sharedRequest until lib/stage declares it)
-// Above the room (the hero zone, roomShared HERO_REST): the body is the hero's and the room never
-// paints it; stage.dots goes back to lib/stage's initial values (shape 0, disperse 0, opacity 1),
+// Above the room (the hero zone, roomShared HERO_REST): the palette is the hero's (the room asks
+// for the same one, heroNight ≥ .5); stage.dots goes back to lib/stage's initial values (shape 0, disperse 0, opacity 1),
 // with glow = heroNight. The renderer derives the hero release from heroProgress, and the way back
 // up finds shape 0 for the reverse hand-off.
 // On "contact:success" (desktop) the renderer streams the envelope right and reforms Ping seated on
@@ -48,15 +50,14 @@ import {
   heroNight,
   visible,
 } from "./roomShared";
+import { acquirePalette } from "./palette";
+import { isNight } from "./paletteMath";
 import {
   getAnchor,
-  paintBody,
-  releaseBody,
   releaseBubble,
   setAnchor,
   setBubble,
   setNight,
-  token,
   writeDots,
 } from "./roomStage";
 
@@ -87,44 +88,8 @@ function build(room: HTMLElement, desktop: boolean, boopLine: string): () => voi
   const lastShape = shapes[shapes.length - 1];
   const anchor = desktop ? document.querySelector<HTMLElement>('[data-dots-anchor="contact"]') : null;
 
-  const bgAt = gsap.utils.interpolate(token("--paper"), token("--night"));
-  const fgAt = gsap.utils.interpolate(token("--ink"), token("--moon"));
-
-  // Phones: interpolating --bg/--fg on body every frame restyled and re-rastered the whole page on
-  // each frame of the scrub (gate 7: p90 33 ms at 4× CPU; 2 slow frames instead of ~57 with the
-  // colours held). So below 1024 px body flips paper ↔ night once, at n = .5, and a fixed veil
-  // under all content carries the gradual change on the compositor: below .5 a night veil at
-  // opacity n over paper, above it a paper veil at 1 − n over night. That is interpolate(paper,
-  // night, n) at every n. Text switches ink ↔ moon at the flip (DECISIONS 36).
-  const paper = token("--paper");
-  const nightColour = token("--night");
-  let veil: HTMLDivElement | null = null;
-  let veilColour = "";
-  let veilOpacity = "";
-  const setVeil = (colour: string, opacity: string) => {
-    if (!veil) return;
-    if (colour !== veilColour) veil.style.backgroundColor = veilColour = colour;
-    if (opacity !== veilOpacity) veil.style.opacity = veilOpacity = opacity;
-  };
-  const paintPhone = (n: number) => {
-    if (!veil) {
-      veil = document.createElement("div");
-      veil.setAttribute("aria-hidden", "true");
-      veil.dataset.roomVeil = "";
-      Object.assign(veil.style, {
-        position: "fixed",
-        inset: "0",
-        zIndex: "-1",
-        pointerEvents: "none",
-        willChange: "opacity",
-        contain: "strict",
-      });
-      document.body.prepend(veil);
-    }
-    const night = n >= 0.5;
-    paintBody(bgAt(night ? 1 : 0), fgAt(night ? 1 : 0));
-    setVeil(night ? paper : nightColour, (night ? 1 - n : n).toFixed(3));
-  };
+  // The page palette is shared with the hero (palette.ts): this only says which one is wanted.
+  const palette = acquirePalette(!desktop);
 
   const channel = (): Channel => ({ target: 0, value: 0 });
   const enter = channel();
@@ -216,15 +181,15 @@ function build(room: HTMLElement, desktop: boolean, boopLine: string): () => voi
       // and is 0 again before the hand-off.
       releaseBubble(boopLine);
       if (getAnchor() !== "room") setAnchor("room");
-      setVeil(veilColour, "0");
+      palette.set(isNight(hn));
       writeDots({ ...HERO_REST, glow: hn });
       return;
     }
 
     const n = Math.max(hn, enter.value) * (1 - exit.value);
-    if (desktop) paintBody(bgAt(n), fgAt(n));
-    else paintPhone(n);
-    setNight(n >= 0.5);
+    const dark = isNight(n);
+    palette.set(dark);
+    setNight(dark);
 
     if (contactOn) {
       setAnchor("contact");
@@ -256,13 +221,12 @@ function build(room: HTMLElement, desktop: boolean, boopLine: string): () => voi
     if (moved || dirty || stage.get().heroProgress !== lastHero) sync();
   });
 
-  // Any ScrollTrigger.refresh() (resize, zoom, the hero's rebuild, a matchMedia flip) re-renders
-  // every invalidateOnRefresh animation at its old progress: revert().invalidate(), then
-  // totalProgress(prev). Past the pin that is the hero's colour tween at 1, so body gets inline
-  // night (--bg/--fg) again while the hero's own data-room state doesn't change. The channels
-  // don't move on a refresh, so the tick wouldn't notice. Re-assert the whole state here instead.
-  // "refresh" is dispatched at the end of the refresh, synchronously, so no frame of night paints.
-  // paintBody compares against the inline values, so it rewrites exactly what the hero overwrote.
+  // Any ScrollTrigger.refresh() (resize, zoom, the hero's rebuild, a matchMedia flip) reverts and
+  // re-renders every invalidateOnRefresh animation, and the hero's revert can take body's inline
+  // palette with it. The channels don't move on a refresh, so the tick wouldn't notice. Re-assert
+  // the whole state here instead ("refresh" is dispatched at the end of the refresh, synchronously,
+  // so no frame of the wrong palette paints). palette.set() with the palette already wanted only
+  // rewrites what differs from the inline values.
   const onRefresh = () => sync();
   ScrollTrigger.addEventListener("refresh", onRefresh);
 
@@ -278,9 +242,7 @@ function build(room: HTMLElement, desktop: boolean, boopLine: string): () => voi
     window.removeEventListener("contact:success", onSent);
     window.clearTimeout(boopTimer);
     releaseBubble(boopLine);
-    veil?.remove();
-    veil = null;
-    releaseBody();
+    palette.release();
     if (getAnchor() !== "room") setAnchor("room");
     writeDots({ stream: 0 });
   };
