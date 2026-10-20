@@ -46,10 +46,17 @@ export const contactSchema = z.object({
   t: z.coerce.number().int().nonnegative().optional(),
 });
 
+/** Missing, too short or malformed. */
 const FIELD_COPY: Record<ContactField, string> = {
   name: copy.errors.name,
   email: copy.errors.email,
   message: copy.errors.message,
+};
+
+/** Over the length limit (zod issue code "too_big"). Email keeps its format copy. */
+const TOO_LONG_COPY: Partial<Record<ContactField, string>> = {
+  name: copy.errors.nameLong,
+  message: copy.errors.messageLong,
 };
 
 const FIELDS: readonly ContactField[] = ["name", "email", "message"];
@@ -101,8 +108,10 @@ export async function handleContact(formData: unknown, deps: ContactDeps): Promi
   if (!(formData instanceof FormData)) return serverError;
 
   // 1. Size. Echo the (length-capped) input so a no-JS visitor can shorten it
-  // instead of retyping. Copy: errors.server until errors.tooLarge exists.
-  if (formDataBytes(formData) > L.bodyBytes) return { ...serverError, values: echo(formData) };
+  // instead of retyping.
+  if (formDataBytes(formData) > L.bodyBytes) {
+    return { status: "error", message: copy.errors.tooLarge, values: echo(formData), at };
+  }
 
   // 2. Validate.
   const parsed = contactSchema.safeParse({
@@ -119,7 +128,7 @@ export async function handleContact(formData: unknown, deps: ContactDeps): Promi
     for (const issue of parsed.error.issues) {
       const key = issue.path[0];
       if (key === "name" || key === "email" || key === "message") {
-        fieldErrors[key] ??= FIELD_COPY[key];
+        fieldErrors[key] ??= (issue.code === "too_big" && TOO_LONG_COPY[key]) || FIELD_COPY[key];
         botOnly = false;
       }
     }

@@ -193,18 +193,42 @@ test.describe("contact action: validation", () => {
   });
 
   test("length limits", async () => {
-    const cases: [Partial<typeof VALID>, "name" | "email" | "message"][] = [
-      [{ name: "a".repeat(CONTACT_LIMITS.name + 1) }, "name"],
-      [{ email: `${"a".repeat(250)}@example.com` }, "email"],
-      [{ message: "m".repeat(CONTACT_LIMITS.message + 1) }, "message"],
-      [{ message: "         9" }, "message"],
+    const cases: [Partial<typeof VALID>, "name" | "email" | "message", string][] = [
+      [{ name: "a".repeat(CONTACT_LIMITS.name + 1) }, "name", copy.errors.nameLong],
+      [{ email: `${"a".repeat(250)}@example.com` }, "email", copy.errors.email],
+      [{ message: "m".repeat(CONTACT_LIMITS.message + 1) }, "message", copy.errors.messageLong],
+      [{ message: "         9" }, "message", copy.errors.message],
     ];
-    for (const [overrides, field] of cases) {
+    for (const [overrides, field, text] of cases) {
       const h = harness(PROD);
       const state = await handleContact(form(overrides), h.deps);
-      expect(state.fieldErrors?.[field], field).toBeTruthy();
+      expect(state.status, field).toBe("error");
+      expect(state.fieldErrors?.[field], field).toBe(text);
       expect(h.calls).toHaveLength(0);
     }
+  });
+
+  test("too-long fields get their own copy; too-short and invalid keep theirs", async () => {
+    const h = harness(PROD);
+    const long = await handleContact(
+      form({ name: "n".repeat(CONTACT_LIMITS.name + 1), message: "m".repeat(CONTACT_LIMITS.message + 1) }),
+      h.deps,
+    );
+    expect(long.fieldErrors).toEqual({ name: copy.errors.nameLong, message: copy.errors.messageLong });
+    // Echoed input is capped at the field limits.
+    expect(long.values?.name).toHaveLength(CONTACT_LIMITS.name);
+    expect(long.values?.message).toHaveLength(CONTACT_LIMITS.message);
+
+    // Exactly at the limit is fine; whitespace is trimmed before the limit applies.
+    const atLimit = await handleContact(
+      form({ name: ` ${"n".repeat(CONTACT_LIMITS.name)} `, message: "m".repeat(CONTACT_LIMITS.message) }),
+      h.deps,
+    );
+    expect(atLimit.status).toBe("success");
+
+    const short = await handleContact(form({ name: "", message: "short" }), h.deps);
+    expect(short.fieldErrors).toEqual({ name: copy.errors.name, message: copy.errors.message });
+    expect(short.fieldErrors?.name).not.toBe(copy.errors.nameLong);
   });
 
   test("validation runs before the bot checks", async () => {
@@ -232,8 +256,10 @@ test.describe("contact action: body size", () => {
     expect(formDataBytes(big)).toBeGreaterThan(CONTACT_LIMITS.bodyBytes);
     const state = await handleContact(big, h.deps);
     expect(state.status).toBe("error");
-    expect(state.message).toBe(copy.errors.server);
+    expect(state.message).toBe(copy.errors.tooLarge);
+    expect(state.message).not.toBe(copy.errors.server);
     expect(state.fieldErrors).toBeUndefined();
+    expect(state.at).toBe(NOW);
     // The input comes back capped at the field limits, so a no-JS post can be shortened.
     expect(state.values?.name).toBe(VALID.name);
     expect(state.values?.message).toHaveLength(CONTACT_LIMITS.message);
@@ -246,10 +272,17 @@ test.describe("contact action: body size", () => {
     expect(formDataBytes(multiByte)).toBeGreaterThan(CONTACT_LIMITS.bodyBytes);
 
     const h = harness(PROD);
+    const multiState = await handleContact(multiByte, h.deps);
+    expect(multiState.status).toBe("error");
+    expect(multiState.message).toBe(copy.errors.tooLarge);
+    expect(multiState.values?.message).toBe("ह".repeat(3000));
+
     const extra = form();
     extra.append("padding", "p".repeat(10_000));
     const state = await handleContact(extra, h.deps);
     expect(state.status).toBe("error");
+    expect(state.message).toBe(copy.errors.tooLarge);
+    expect(state.values).toEqual({ name: VALID.name, email: VALID.email, message: VALID.message });
     expect(h.calls).toHaveLength(0);
   });
 

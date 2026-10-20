@@ -3,12 +3,10 @@
 import { useEffect } from "react";
 
 /**
- * Closed-eyes favicon (blueprint §1.5, Phase 6 head kit), like the other mascot
- * stills: null until the file is in public/, and while null only the title
- * swaps. Nothing is fetched up front, so a missing file can never log a 404.
- * Lead: set to "/icon-sleep.svg" once public/icon-sleep.svg is on the branch.
+ * Closed-eyes favicon (blueprint §1.5, Phase 6 head kit). Fetched only when the
+ * tab is first hidden. Set to null to swap the title alone.
  */
-export const SLEEP_ICON = null as string | null;
+export const SLEEP_ICON: string | null = "/icon-sleep.svg";
 
 type Saved = {
   title: string;

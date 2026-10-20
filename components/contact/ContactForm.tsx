@@ -21,6 +21,8 @@ export type ContactFormCopy = {
   message: string;
   submit: string;
   pending: string;
+  /** Character counter template; {count} and {max} are replaced. */
+  counter: string;
 };
 
 /** Where a no-JS post lands: the browser scrolls back to the form and its result. */
@@ -37,7 +39,9 @@ const ID = {
 const errorId = (f: ContactField) => `${ID[f]}-error`;
 
 const fmt = (n: number) => n.toLocaleString("en-CA");
-const countText = (n: number) => `${fmt(n)} / ${fmt(L.message)}`;
+/** "1,234 of 4,000 characters" from the `contact.form.counter` template. */
+const countText = (template: string, n: number) =>
+  template.replace("{count}", fmt(n)).replace("{max}", fmt(L.message));
 
 /** Update React's own text node in place, so later React text updates still land. */
 function setText(el: HTMLElement | null, text: string) {
@@ -87,15 +91,15 @@ export function ContactForm({ copy }: { copy: ContactFormCopy }) {
     if (!form) return;
     if (state.status === "success") {
       form.reset();
-      setText(liveCount.current, countText(0));
-      setText(srCount.current, countText(0));
+      setText(liveCount.current, countText(copy.counter, 0));
+      setText(srCount.current, countText(copy.counter, 0));
       if (tRef.current) tRef.current.value = String(Date.now());
       window.dispatchEvent(new CustomEvent("contact:success"));
     } else if (state.fieldErrors) {
       const first = (["name", "email", "message"] as const).find((f) => state.fieldErrors?.[f]);
       if (first) document.getElementById(ID[first])?.focus();
     }
-  }, [state]);
+  }, [state, copy.counter]);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -106,7 +110,7 @@ export function ContactForm({ copy }: { copy: ContactFormCopy }) {
 
   const fe = state.fieldErrors ?? {};
   const values = state.status === "error" ? (state.values ?? {}) : {};
-  const initialCount = countText(values.message?.length ?? 0);
+  const initialCount = countText(copy.counter, values.message?.length ?? 0);
   const describedBy = (f: ContactField, extra?: string) =>
     [fe[f] ? errorId(f) : null, extra].filter(Boolean).join(" ") || undefined;
 
@@ -176,10 +180,10 @@ export function ContactForm({ copy }: { copy: ContactFormCopy }) {
           aria-invalid={fe.message ? true : undefined}
           aria-describedby={describedBy("message", ID.count)}
           onInput={(e) => {
-            setText(liveCount.current, countText(e.currentTarget.value.length));
+            setText(liveCount.current, countText(copy.counter, e.currentTarget.value.length));
           }}
           onBlur={(e) => {
-            setText(srCount.current, countText(e.currentTarget.value.length));
+            setText(srCount.current, countText(copy.counter, e.currentTarget.value.length));
           }}
           className={`${inputClass} min-h-40 resize-y`}
         />
