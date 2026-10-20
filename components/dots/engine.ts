@@ -167,8 +167,23 @@ function disposeGpu(g: Gpu) {
   g.rankTex.dispose();
 }
 
+/** loadTargets' options plus the cancel signal lib/dots is asked to honour (terminate the worker). */
+type LoadOptions = Parameters<typeof loadTargets>[0] & { signal?: AbortSignal };
+
+const isAbort = (err: unknown) => (err as { name?: unknown } | null)?.name === "AbortError";
+
 export function startDotStage({ tier: requested, onFallback }: DotStageOptions): () => void {
+  // Safety net: a stage that hid the still and never got to restore it (it only ever writes
+  // opacity 0 there) must not leave Ping, the hero's LCP image, invisible on a re-shown route.
+  getPingFigure()?.style.removeProperty("opacity");
+
   let disposed = false;
+  /** Cancels this stage's in-flight target sampling (first load and the T2 → T1 reload). */
+  const loads = new AbortController();
+  const sample = (n: number) => {
+    const options: LoadOptions = { n, signal: loads.signal };
+    return loadTargets(options);
+  };
   let tier: PointTier = tierFloor === "T1" || requested === "T1" ? "T1" : "T2";
   const coarse = window.matchMedia(COARSE_MQ).matches;
   const desktopMq = window.matchMedia(DESKTOP_MQ);
@@ -460,21 +475,50 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
   const probe = { shape: 0, holeR: 0, pupilDir: 0, tier: tier as Tier, eyes: [0, 0] as [number, number] };
   const home = document.getElementById("home");
 
+  /**
+   * The figure.ping element this stage hid. It is restored by reference, never re-queried: when
+   * an Activity hides the route, the hero's layout-effect cleanup unregisters the figure
+   * (registerPingFigure(null)) before this stage's passive cleanup runs, and the kept DOM would
+   * otherwise come back with Ping still at opacity 0.
+   */
+  let hiddenFigure: HTMLElement | null = null;
+  const showStill = () => {
+    hiddenFigure?.style.removeProperty("opacity");
+    hiddenFigure = null;
+  };
+  const hideStill = (el: HTMLElement | null) => {
+    if (el === hiddenFigure) return;
+    showStill();
+    hiddenFigure = el;
+    el?.style.setProperty("opacity", "0");
+  };
+
+  /**
+   * #home[data-handoff] (front clip and shadow out, "Patel" whole) must hold for as long as the
+   * dots do. The pinned hero sets it from HANDOFF_AT itself; below 1024 px it never does, and on
+   * the way back the dots hold past HANDOFF_AT until they have reassembled. The stage adds it then,
+   * and only removes what it added (and not while the pinned hero still wants it).
+   */
+  const holdHandoffAttr = () => {
+    if (!home || home.hasAttribute("data-handoff")) return;
+    home.setAttribute("data-handoff", "");
+    ownHandoffAttr = true;
+  };
+  const releaseHandoffAttr = () => {
+    if (!ownHandoffAttr) return;
+    ownHandoffAttr = false;
+    const heroWantsIt = !mobile && stage.get().heroProgress >= HANDOFF_AT;
+    if (!heroWantsIt) home?.removeAttribute("data-handoff");
+  };
+
   /** The hand-off (§5.3): in one frame the still goes to opacity 0 and the canvas to 1, or back. */
   const setHandoff = (on: boolean) => {
     handedOff = on;
-    const figure = getPingFigure();
-    if (figure) figure.style.opacity = on ? "0" : "";
+    if (on) hideStill(getPingFigure());
+    else showStill();
     cs.opacity = on ? "1" : "0";
-    // Below 1024 px the hero runs without its scrub, which is what sets #home[data-handoff]
-    // (front clip and shadow out). Mirror it here then, and only undo what this stage set.
-    if (on && home && !home.hasAttribute("data-handoff")) {
-      home.setAttribute("data-handoff", "");
-      ownHandoffAttr = true;
-    } else if (!on && ownHandoffAttr) {
-      home?.removeAttribute("data-handoff");
-      ownHandoffAttr = false;
-    }
+    if (on) holdHandoffAttr();
+    else releaseHandoffAttr();
     stage.set({ handoff: on ? "dots" : "still" });
   };
 
@@ -499,7 +543,7 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
       if (reloading) return;
       tierFloor = "T1";
       reloading = true;
-      loadTargets({ n: TIER_POINTS.T1 }).then(
+      sample(TIER_POINTS.T1).then(
         (t) => {
           reloading = false;
           if (disposed) return;
@@ -508,8 +552,9 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
           install(buildGpu(t));
           governor.reset();
         },
-        () => {
+        (err: unknown) => {
           reloading = false;
+          if (disposed || isAbort(err)) return; // torn down mid-sampling, not a governor drop
           fail("governor");
         },
       );
@@ -527,10 +572,20 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
     const st = stage.get();
     const t = gpu.targets;
 
-    // Hero release and the hand-off.
+    // Hero release and the hand-off. On the way back the dots hold until they have reassembled
+    // (the release is smoothed, and on phones progress jumps 1 → 0 while the release takes ~1.1 s):
+    // shape 0 reads figure.ping's box every frame meanwhile, so the swap back lands on an aligned
+    // frame instead of the cloud vanishing mid-flight.
     release = stepRelease(release, releaseTarget(st.heroProgress), dt);
-    const wantHandoff = st.heroProgress >= HANDOFF_AT;
+    const wantHandoff = st.heroProgress >= HANDOFF_AT || (handedOff && release > 1e-3);
     if (wantHandoff !== handedOff) setHandoff(wantHandoff);
+    if (handedOff) {
+      // Keep the still hidden and the front clip out for the whole hold, also if the hero
+      // re-registered its figure or (pinned, on the way back) already dropped the attribute.
+      const figure = getPingFigure();
+      if (figure && figure !== hiddenFigure) hideStill(figure);
+      holdHandoffAttr();
+    }
     const z = effectiveHeroProgress(handedOff, st.heroProgress, release) < RAISED_UNTIL ? "2" : "0";
     if (z !== zIndex) cs.zIndex = zIndex = z;
 
@@ -691,12 +746,7 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
 
   // ── Load: targets (worker), the Ping still's colours, the shared ticker and scroll velocity ──
   const pingSrc = shapes.shapes["ping-hero"].src;
-  Promise.all([
-    loadTargets({ n: TIER_POINTS[tier] }),
-    loadImage(pingSrc),
-    import("@/lib/ticker"),
-    import("@/lib/scroll"),
-  ]).then(
+  Promise.all([sample(TIER_POINTS[tier]), loadImage(pingSrc), import("@/lib/ticker"), import("@/lib/scroll")]).then(
     ([targets, img, ticker, scroll]) => {
       if (disposed) return;
       pingTex = new Texture(img);
@@ -712,6 +762,7 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
       updateRunning();
     },
     (err: unknown) => {
+      if (disposed || isAbort(err)) return; // torn down while loading: nothing to report
       if (process.env.NODE_ENV !== "production") console.warn("dots: the stage could not load", err);
       fail("context-lost");
     },
@@ -721,6 +772,7 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
   function dispose() {
     if (disposed) return;
     disposed = true;
+    loads.abort(); // stop sampling this stage no longer needs (lib/dots terminates the worker)
     removeTick?.();
     removeTick = null;
     io.disconnect();
@@ -733,7 +785,11 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
     window.removeEventListener("resize", applySize);
     window.removeEventListener("contact:success", onSuccess);
     canvas.removeEventListener("webglcontextlost", onLost);
+    // Restore the element this stage hid (not getPingFigure(): under an Activity hide the hero has
+    // already unregistered it), and drop the attribute only if this stage added it.
     if (handedOff) setHandoff(false);
+    showStill();
+    releaseHandoffAttr();
     if (points) scene.remove(points);
     if (gpu) disposeGpu(gpu);
     gpu = null;
