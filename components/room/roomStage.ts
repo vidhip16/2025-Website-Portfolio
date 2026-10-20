@@ -47,9 +47,9 @@ export function releaseBubble(text: string): void {
 }
 
 // ── body hooks (the room's half of the hero/room colour contract) ─────────────
-// The page colour lives only on body (--bg/--fg). The hero scrub tweens it paper → night and sets
-// body[data-room="night"] from the tween's midpoint; the room continues that tween and owns the
-// attribute while the room is lit (globals.css swaps the focus ring to lilac under it).
+// The page colour lives only on body (--bg/--fg). The palette (palette.ts) paints it for the hero
+// pin and the scrubbed room; roomStill paints it under reduced motion. body[data-room="night"] is
+// set from the night threshold while the page is night (globals.css swaps the focus ring to lilac).
 
 let wroteColours = false;
 let wroteNight = false;

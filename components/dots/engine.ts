@@ -372,8 +372,9 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
       roomAnchor = room;
     }
     roomBoxStale = true;
-    // Below 1024 px the contact anchor is display: none (lg:block), so reading it every frame
-    // only forced a layout to learn it has no box. Phones fade the envelope out instead.
+    // Below 1024 px the contact anchor is display: none (Contact.tsx lg:block, which must match
+    // DESKTOP_MQ), so reading it while #contact is on screen only forced a layout to learn it has
+    // no box. Phones fade the envelope out instead.
     contactAnchor = mobile ? null : document.querySelector<HTMLElement>('[data-dots-anchor="contact"]');
   };
   const applySize = () => {

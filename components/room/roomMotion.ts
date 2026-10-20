@@ -170,13 +170,13 @@ function build(room: HTMLElement, desktop: boolean, boopLine: string): () => voi
   const sync = () => {
     dirty = false;
     lastHero = stage.get().heroProgress;
-    // heroNight: the hero's own tween is the writer above the room (desktop pin only).
+    // heroNight: how far the hero pin is into its night span above the room (desktop pin only).
     const hn = heroNight(lastHero, desktop);
     const roomOn = enter.value > 0 || exit.value > 0 || morphs.some((c) => c.value > 0);
     const contactOn = contact.value > 0;
     if (!roomOn && !contactOn) {
-      // The hero zone. Leave the body to the hero's tween and hand the stage back (roomShared
-      // HERO_REST), otherwise a visit to the room leaves seated, dispersed, glowing Ping behind.
+      // The hero zone. Ask for the palette the hero pin's progress wants and hand the stage back
+      // (roomShared HERO_REST), otherwise a visit to the room leaves seated, dispersed, glowing Ping behind.
       // Glow keeps following the hero's night amount, so it meets the room's glow without a jump
       // and is 0 again before the hand-off.
       releaseBubble(boopLine);

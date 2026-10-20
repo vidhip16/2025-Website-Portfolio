@@ -20,10 +20,12 @@
 // reverts everything and is safe to re-run.
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { fromFlatY, registerHeroPin, toFlatY } from "@/lib/heroPin";
+import { fromFlatY, toFlatY } from "@/lib/heroPin";
 import { DESKTOP_MQ, getMotionPrefs, subscribeMotion } from "@/lib/motion";
 import { HANDOFF_AT, stage } from "@/lib/stage";
 import { acquirePalette } from "@/components/room/palette";
+import { isNight } from "@/components/room/paletteMath";
+import { heroNight } from "@/components/room/roomShared";
 
 /** Pin length as a fraction of the viewport height. */
 const PIN = 1.4;
@@ -34,16 +36,8 @@ const DIM = 0.3;
 const GROW = 1.06;
 /** The copy is gone by this progress. */
 const COPY_OUT = 0.6;
-/** NIGHT → 1: the room goes dark (heroNight in components/room/roomShared.ts runs over the same span). */
-const NIGHT = 0.5;
 /** On #home from HANDOFF_AT on (hero.module.css): front clip and shadow hidden, "Patel" whole. */
 const HANDOFF_ATTR = "data-handoff";
-/**
- * From here on the page is night: the palette fades to night + moon and body carries
- * data-room="night" (globals.css swaps --focus orchid → lilac under it). The midpoint of NIGHT → 1,
- * so it is heroNight(p) ≥ NIGHT_AT in components/room, which the room uses for the same switch.
- */
-const NIGHT_ROOM = NIGHT + (1 - NIGHT) / 2;
 
 /** sessionStorage: the scrollY and the flat position at the last pagehide (takeReloadPosition). */
 const RELOAD_KEY = "vp:hero-reload";
@@ -122,7 +116,9 @@ export function startHeroScroll(section: HTMLElement): () => void {
         const p = tl.progress();
         stage.set({ heroProgress: p });
         setHandoff(p >= HANDOFF_AT);
-        const dark = p >= NIGHT_ROOM;
+        // Night from the same threshold the room uses (heroNight ≥ NIGHT_AT): the palette fades to
+        // night + moon and body carries data-room="night" (globals.css swaps --focus orchid → lilac).
+        const dark = isNight(heroNight(p, true));
         setNight(dark);
         palette.set(dark);
       },
@@ -181,15 +177,12 @@ export function startHeroScroll(section: HTMLElement): () => void {
   };
 
   // ── Keeping the visitor's place when the pin comes or goes ──────────
-  // Positions are flat (lib/heroPin): as if the pin were not in the page. The Work island stores
-  // and restores through the same registered pin.
-  const unregisterPin = registerHeroPin(() =>
-    pin ? { start: pin.start, end: pin.end, height: section.offsetHeight } : null,
-  );
-  const flatY = () => toFlatY(window.scrollY);
+  // Positions are flat (lib/heroPin): as if the pin were not in the page. ("Back to the gallery"
+  // stores an offset from #work instead: components/work/scrollMemory.ts.)
+  const flatY = () => toFlatY(window.scrollY, pin);
   /** Past the hero → shift by the pin the page has now; at the hero → stay (the pin picks it up). */
   const place = (flat: number) => {
-    const y = fromFlatY(flat);
+    const y = fromFlatY(flat, pin, section.offsetHeight);
     if (Math.abs(window.scrollY - y) > 1) window.scrollTo({ top: y, behavior: "instant" });
   };
   const rebuild = (before: number) => {
@@ -210,12 +203,9 @@ export function startHeroScroll(section: HTMLElement): () => void {
     if (pin) ScrollTrigger.refresh();
     place(y);
 
-    let pinnedNow = wantsPin();
+    // `pin` is set exactly while the pinned build is up.
     const onChange = () => {
-      const next = wantsPin();
-      if (next === pinnedNow) return;
-      pinnedNow = next;
-      rebuild(flatY());
+      if (wantsPin() !== (pin !== null)) rebuild(flatY());
     };
     const offMotion = subscribeMotion(onChange);
     desktopMq.addEventListener("change", onChange);
@@ -253,7 +243,6 @@ export function startHeroScroll(section: HTMLElement): () => void {
   return () => {
     stopped = true;
     unsubscribe();
-    unregisterPin();
     io.disconnect();
     ctx?.revert();
     ctx = null;

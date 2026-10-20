@@ -8,6 +8,7 @@ import type { DotsProbe } from "@/lib/gaze";
 import { DESKTOP_MQ, useMotionPrefs } from "@/lib/motion";
 import type { TierReason } from "@/lib/quality";
 import { stage, type StageState } from "@/lib/stage";
+import { SEAT_SHAPE } from "@/components/room/roomShared";
 import {
   LAST_SHAPE,
   clamp,
@@ -32,8 +33,7 @@ import {
 
 const QA = process.env.NEXT_PUBLIC_QA === "1";
 const PING_ASPECT = gaze.box.w / gaze.box.h;
-/** Ping seated (shape 1) and her scale in public/dots/shapes.json; icons are 512² masks at scale 1. */
-const SEAT_SHAPE = 1;
+/** Ping seated (roomShared SEAT_SHAPE): her scale in public/dots/shapes.json; icons are 512² masks at scale 1. */
 const SEAT_SCALE = 0.6;
 /** The About chapter's shape; later chapters follow in order (content/site.ts `chapters[].shape`). */
 const FIRST_ROOM_SHAPE = 1;

@@ -47,7 +47,7 @@ export function startRoomStill(room: HTMLElement, boopLine: string): () => void 
 
   /**
    * The body for the current zone below the hero: night in a chapter, paper between and at
-   * contact. Paper is painted, not released, so a foreign night (the hero's tween re-rendered by a
+   * contact. Paper is painted, not released, so a foreign night (another writer's leftover after a
    * refresh) is overwritten too. Idempotent: paintBody and setNight write only on change.
    */
   const paintZone = () => {

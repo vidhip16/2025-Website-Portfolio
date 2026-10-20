@@ -21,10 +21,10 @@ export const BOOP_HOLD_MS = 3200;
  */
 export const HERO_REST = { shape: HERO_SHAPE, disperse: 0, opacity: 1, glow: 0, stream: 0 } as const;
 
-/** heroScrollMotion NIGHT: the hero's colour tween runs over heroProgress .5 → 1 (desktop pin only). */
+/** The hero pin's night span: heroProgress .5 → 1 (desktop pin only). Night is wanted from its midpoint. */
 export const HERO_NIGHT_FROM = 0.5;
 
-/** How dark the hero's own colour tween has made the page, 0..1 (0 when the hero doesn't pin). */
+/** How far into its night span the hero pin is, 0..1 (0 when the hero doesn't pin). */
 export function heroNight(heroProgress: number, pinned: boolean): number {
   if (!pinned) return 0;
   const n = (heroProgress - HERO_NIGHT_FROM) / (1 - HERO_NIGHT_FROM);

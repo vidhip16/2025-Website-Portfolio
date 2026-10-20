@@ -36,17 +36,13 @@ export type Palette = {
 /** A release and an acquire within this many ms are one rebuild. */
 const REBUILD_MS = 100;
 
-type Mix = (n: number) => string;
-
 /** What the page shows: 0 paper … 1 night. Only the fade moves it between the two. */
 const shown = { n: 0 };
 let target: 0 | 1 = 0;
 let tween: gsap.core.Tween | null = null;
 let users = 0;
-let paper = "";
-let nightColour = "";
-let bgAt: Mix | null = null;
-let fgAt: Mix | null = null;
+/** [ground, text] of each palette, read from the tokens on first acquire. */
+let colours: { paper: readonly [string, string]; night: readonly [string, string] } | null = null;
 let veil: HTMLDivElement | null = null;
 let veilColour = "";
 let veilOpacity = "";
@@ -76,10 +72,11 @@ function setVeil(colour: string, opacity: number) {
 
 /** Writes `shown` to the body and the veil. Writes only what changed. */
 function paint() {
-  if (!bgAt || !fgAt) return;
+  if (!colours) return;
   const { night, opacity } = veilBlend(shown.n);
-  paintBody(bgAt(night ? 1 : 0), fgAt(night ? 1 : 0));
-  setVeil(night ? paper : nightColour, opacity);
+  const [bg, fg] = night ? colours.night : colours.paper;
+  paintBody(bg, fg);
+  setVeil(night ? colours.paper[0] : colours.night[0], opacity);
 }
 
 function clear() {
@@ -90,15 +87,15 @@ function clear() {
   veilColour = veilOpacity = "";
   releaseBody();
   shown.n = target = 0;
-  bgAt = fgAt = null;
+  colours = null;
 }
 
 export function acquirePalette(): Palette {
   if (users++ === 0) {
-    paper = token("--paper");
-    nightColour = token("--night");
-    bgAt = gsap.utils.interpolate(paper, nightColour) as Mix;
-    fgAt = gsap.utils.interpolate(token("--ink"), token("--moon")) as Mix;
+    colours = {
+      paper: [token("--paper"), token("--ink")],
+      night: [token("--night"), token("--moon")],
+    };
     // A rebuild keeps the palette it had; a fade that was running is taken to its end.
     shown.n = target = performance.now() - lastAt < REBUILD_MS ? lastTarget : 0;
   }
