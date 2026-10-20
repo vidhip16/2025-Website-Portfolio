@@ -5,6 +5,7 @@ import { Branches } from "@/components/experience/Branches";
 import { Contact } from "@/components/contact/Contact";
 import { Footer } from "@/components/footer/Footer";
 import { RouteFocus } from "@/components/work/RouteFocus";
+import { DotStageLoader } from "@/components/dots/DotStageLoader";
 
 export default function Home() {
   return (
@@ -18,6 +19,7 @@ export default function Home() {
         <Contact />
       </main>
       <Footer />
+      <DotStageLoader />
     </>
   );
 }

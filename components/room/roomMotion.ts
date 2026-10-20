@@ -29,9 +29,8 @@
 // paints it; stage.dots goes back to lib/stage's initial values (shape 0, disperse 0, opacity 1),
 // with glow = heroNight. The renderer derives the hero release from heroProgress, and the way back
 // up finds shape 0 for the reverse hand-off.
-// On "contact:success" (desktop): the envelope streams right (stage.dots.stream 0 → 1 over 900 ms;
-// the renderer applies the per-point delay 0–.4 and the ease-in) while it fades, then reforms into
-// Ping seated (shape 0 → 1 with the curl swirl, fading in) and the bubble says mascot.boopLine.
+// On "contact:success" (desktop) the renderer streams the envelope right and reforms Ping seated on
+// its own clock (DECISIONS 33); the room keeps stage.dots.shape unchanged and shows mascot.boopLine.
 //
 // Cleanup (matchMedia revert, Pause, an Activity-hidden route) kills every trigger and tween and
 // undoes every write. Safe to re-run.
@@ -44,7 +43,6 @@ import {
   BOOP_HOLD_MS,
   CONTACT_SHAPE,
   HERO_REST,
-  HERO_SHAPE,
   SEAT_SHAPE,
   heroNight,
   visible,
@@ -70,10 +68,6 @@ const SNAP = 0.0005;
 /** The contact dots fade in over the first part of their scrub. */
 const CONTACT_FADE = 0.35;
 /** The success sequence (s). */
-const STREAM_S = 0.9;
-const FADE_OUT_AT = 0.55;
-const REFORM_S = 1.1;
-const FADE_IN_S = 0.4;
 const BOOP_AT = 1.5;
 
 type Channel = { target: number; value: number };
@@ -142,38 +136,28 @@ function build(room: HTMLElement, desktop: boolean, boopLine: string): () => voi
 
   const contactShape = () => (sent.done ? sent.shape : lastShape + contact.value * (CONTACT_SHAPE - lastShape));
 
+  // The renderer owns the send animation (lead decision, DECISIONS 33): on "contact:success" it
+  // streams the envelope off and reforms the seated Ping by itself, as long as stage.dots.shape is
+  // left unchanged. So the room only holds the contact state and shows the boop line.
   const onSent = () => {
     if (!anchor || !visible(anchor)) return;
     seq?.kill();
     window.clearTimeout(boopTimer);
     releaseBubble(boopLine);
-    const from = contactShape();
-    sent.shape = from;
+    sent.shape = contactShape();
     sent.done = true;
     sent.stream = 0;
     sent.fade = 1;
     dirty = true;
-    seq = gsap
-      .timeline({
-        onUpdate: () => {
-          dirty = true;
-        },
-      })
-      .to(sent, { stream: 1, duration: STREAM_S, ease: "none" }, 0)
-      .to(sent, { fade: 0, duration: STREAM_S - FADE_OUT_AT, ease: "power1.in" }, FADE_OUT_AT)
-      // Off screen and invisible: swap to the big Ping and let her settle into the seated one.
-      .set(sent, { shape: HERO_SHAPE, stream: 0 }, STREAM_S)
-      .to(sent, { shape: SEAT_SHAPE, duration: REFORM_S, ease: "power2.out" }, STREAM_S)
-      .to(sent, { fade: 1, duration: FADE_IN_S, ease: "power1.out" }, STREAM_S)
-      .call(
-        () => {
-          if (getAnchor() !== "contact") return;
-          setBubble(boopLine);
-          boopTimer = window.setTimeout(() => releaseBubble(boopLine), BOOP_HOLD_MS);
-        },
-        undefined,
-        BOOP_AT,
-      );
+    seq = gsap.timeline().call(
+      () => {
+        if (getAnchor() !== "contact") return;
+        setBubble(boopLine);
+        boopTimer = window.setTimeout(() => releaseBubble(boopLine), BOOP_HOLD_MS);
+      },
+      undefined,
+      BOOP_AT,
+    );
   };
   window.addEventListener("contact:success", onSent);
 

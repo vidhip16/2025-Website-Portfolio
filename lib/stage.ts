@@ -5,6 +5,9 @@
 
 export type Handoff = "still" | "dots";
 
+/** Where the current shape is laid out: the room box or the contact anchor (components/room/roomStage.ts). */
+export type DotsAnchor = "room" | "contact";
+
 /** A point the dot pupils should look at (client px), or null for the cursor. */
 export type LookTarget = { x: number; y: number } | null;
 
@@ -18,11 +21,18 @@ export type StageState = {
   /** True while the projection room (#about) intersects the viewport. */
   roomInView: boolean;
   /**
-   * Dot-stage drive values, written by the scroll scrubs (hero, room, contact)
-   * and read by the renderer every frame. shape: 0 ping-hero, 1 ping-seat,
-   * 2 braces, 3 db-net, 4 terminal, 5 envelope (fractional = morphing).
+   * Dot-stage drive values, read by the renderer every frame. shape: 0 ping-hero,
+   * 1 ping-seat, 2 braces, 3 db-net, 4 terminal, 5 envelope (fractional = morphing).
+   * Zone split: above #about ("top bottom") the room controller keeps
+   * {shape 0, disperse 0, opacity 1, stream 0} with glow = the hero's night
+   * amount, and the renderer derives the hero release from heroProgress itself.
+   * From #about down, the room and contact scrubs (components/room) write every
+   * field. The hero writes heroProgress only. The renderer never writes dots.
+   * stream: legacy contact send progress, kept at 0 (the renderer owns the send).
    */
-  dots: { shape: number; disperse: number; opacity: number; glow: number };
+  dots: { shape: number; disperse: number; opacity: number; glow: number; stream: number };
+  /** Where the dot shapes are laid out (room box or the contact anchor). */
+  anchor: DotsAnchor;
   /** Skill-chip hover/focus: where the dot pupils should look (null = cursor). */
   look: LookTarget;
   /** Skill bubble text beside the shape, e.g. "used in Type Racer" (null = hidden). */
@@ -34,7 +44,8 @@ let state: StageState = {
   handoff: "still",
   heroInView: true,
   roomInView: false,
-  dots: { shape: 0, disperse: 0, opacity: 1, glow: 0 },
+  dots: { shape: 0, disperse: 0, opacity: 1, glow: 0, stream: 0 },
+  anchor: "room",
   look: null,
   bubble: null,
 };

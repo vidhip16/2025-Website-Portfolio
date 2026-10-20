@@ -122,7 +122,9 @@ const gazeBytes = () => {
 const rows = [
   ["Initial JS (gz)", initialJs, 170 * KB],
   ["Dots chunk (gz, lazy)", dotsChunk, 160 * KB],
-  ["All JS, upper bound (gz)", allJs, 360 * KB],
+  // Informational: every chunk in the build (other routes, the worker). The real §8
+  // gate is "JS after a full scroll", measured in a browser by scripts/js-after-scroll.mjs.
+  ["All JS in build (info)", allJs, null],
   ["CSS (gz)", css, 25 * KB],
   ["Fonts (Latin)", fonts, 160 * KB],
   ["Hero critical bytes", heroCritical, 300 * KB],
@@ -133,7 +135,7 @@ const rows = [
 
 let failed = false;
 const report = rows.map(([name, value, limit]) => {
-  const status = value == null ? (STRICT ? "FAIL" : "pending") : value <= limit ? "ok" : "FAIL";
+  const status = limit == null ? "info" : value == null ? (STRICT ? "FAIL" : "pending") : value <= limit ? "ok" : "FAIL";
   if (status === "FAIL") failed = true;
   return { name, bytes: value, limit, status };
 });

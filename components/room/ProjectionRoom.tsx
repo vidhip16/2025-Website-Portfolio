@@ -1,4 +1,4 @@
-import { about, chapters, mascot, onlyVerified, type Skill } from "@/content/site";
+import { about, chapters, mascot, onlyVerified, room, type Skill } from "@/content/site";
 import { getProjects } from "@/content/projects";
 import { Chapter, type AboutData, type ChipData } from "./Chapter";
 import { DotBubble } from "./DotBubble";
@@ -9,7 +9,6 @@ import s from "./room.module.css";
  * Derived bubble for a skill with a project tile (content/site.ts `Skill.bubble`: "Derived when
  * omitted", e.g. "used in Type Racer"). Requested as a content string (sharedRequests).
  */
-const USED_IN = "used in";
 
 /**
  * The projection room (#about, blueprint §3.2 + PHASE5 "Workstream R" + Revision R1).
@@ -31,7 +30,7 @@ export function ProjectionRoom() {
       name: skill.name,
       slug,
       href: slug ? undefined : skill.href,
-      bubble: skill.bubble ?? (title ? `${USED_IN} ${title}` : undefined),
+      bubble: skill.bubble ?? (title ? `${room.usedIn} ${title}` : undefined),
     };
   };
 

@@ -44,6 +44,9 @@ const nextConfig: NextConfig = {
     },
   },
   experimental: {
+    // Small shared modules (Lenis, web-vitals) were being merged into every lazy
+    // chunk group and downloaded several times. A lower threshold keeps them shared.
+    turbopackChunking: { minChunkSize: 15000 },
     // Refuse oversized posts before parsing; the contact action's own 8 KB check is the second layer.
     serverActions: { bodySizeLimit: "64kb" },
   },

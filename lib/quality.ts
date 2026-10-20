@@ -18,7 +18,8 @@ export type TierReason =
   | "context-lost"
   | "save-data"
   | "reduced-motion"
-  | "governor";
+  | "governor"
+  | "load-failed";
 
 export type QualityState = {
   tier: Tier;

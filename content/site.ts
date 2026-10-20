@@ -121,6 +121,12 @@ export type Skill = Verified & {
   bubble?: string;
 };
 
+/** Projection-room UI strings. */
+export const room = {
+  /** Prefix for derived skill bubbles: "used in Type Racer". */
+  usedIn: "used in",
+} as const;
+
 export type Chapter = {
   id: "about" | "build" | "data" | "support";
   title: string;
