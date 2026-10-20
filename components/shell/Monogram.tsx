@@ -1,20 +1,30 @@
+import { MONOGRAM_EAR, MONOGRAM_LETTERS, MONOGRAM_VIEWBOX } from "./monogram-paths";
+
 /**
- * The "vp" monogram.
- *
- * Placeholder: a Fraunces 800 wordmark. Phase 6 replaces the inside of this
- * component with the real SVG (Fraunces outlines plus Ping's folded ear,
- * blueprint §1.5). Keep the outer contract: decorative only (`aria-hidden`),
- * sized by font-size via `em`, coloured by `currentColor`, so the link that
- * wraps it carries the accessible name and the colour.
+ * The "vp" monogram: real Fraunces 800 outlines plus Ping's folded ear rising
+ * from the p stem (scripts/make_monogram.py, blueprint §1.5).
+ * Decorative only (`aria-hidden`): the wrapping link carries the accessible
+ * name. Letters use `currentColor`; the ear is lilac with a currentColor
+ * outline. Sized by font-size (height 1.5em).
  */
 export function Monogram({ className = "" }: { className?: string }) {
   return (
-    <span
+    <svg
       aria-hidden="true"
+      focusable="false"
       data-monogram
-      className={`font-display font-extrabold leading-none tracking-[-0.04em] ${className}`}
+      viewBox={MONOGRAM_VIEWBOX}
+      className={`inline-block h-[1.5em] w-auto overflow-visible ${className}`}
     >
-      vp
-    </span>
+      <path d={MONOGRAM_LETTERS} fill="currentColor" />
+      <path
+        d={MONOGRAM_EAR}
+        fill="var(--lilac)"
+        stroke="currentColor"
+        strokeWidth={70}
+        strokeLinejoin="round"
+        className="forced-colors:fill-[CanvasText]"
+      />
+    </svg>
   );
 }
