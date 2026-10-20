@@ -18,7 +18,7 @@ export function ProjectionRoom() {
               ))}
               <figure className="mt-8 w-[min(320px,80vw)] -rotate-2 border-[10px] border-paper bg-paper shadow-lg">
                 <Image src={about.photo.src} width={about.photo.width} height={about.photo.height} alt={about.photo.alt} sizes="320px" />
-                <figcaption className="pt-2 text-sm">{about.photo.caption}</figcaption>
+                <figcaption className="pt-2 text-sm text-ink">{about.photo.caption}</figcaption>
               </figure>
             </>
           ) : (

@@ -7,6 +7,7 @@ import { person, work } from "@/content/site";
 import { getProject, getProjects } from "@/content/projects";
 import { Footer } from "@/components/footer/Footer";
 import { BackLink } from "@/components/work/BackLink";
+import { RouteFocus } from "@/components/work/RouteFocus";
 import { MORPH_SHARE, morphName } from "@/components/work/transition";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -62,6 +63,7 @@ export default async function ProjectPage({ params }: Props) {
         tabIndex={-1}
         className="px-[var(--gutter)] pb-[clamp(72px,10vw,128px)] pt-[calc(var(--nav-h)+clamp(20px,4vh,48px))]"
       >
+        <RouteFocus />
         <article aria-labelledby="project-title" className="mx-auto max-w-[1320px]">
           <BackLink
             label={work.ui.back}

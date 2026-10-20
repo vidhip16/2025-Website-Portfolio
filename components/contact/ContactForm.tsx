@@ -215,8 +215,10 @@ export function ContactForm({ copy }: { copy: ContactFormCopy }) {
           data-bwignore=""
         />
       </div>
-      {/* Rendered empty (the page is static) and set to Date.now() after mount. */}
-      <input ref={tRef} type="hidden" name="t" defaultValue="" />
+      {/* Rendered empty (the page is static) and set to Date.now() after mount.
+          No defaultValue: a hidden input's value IS its value attribute, so React
+          would reset it to "" on the next re-render (e.g. the motion-prefs sync). */}
+      <input ref={tRef} type="hidden" name="t" />
 
       <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
         <button
