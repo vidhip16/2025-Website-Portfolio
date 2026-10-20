@@ -50,36 +50,19 @@ export type Pose = { angle: number; weight: number };
 
 /** Below this weight the pupil is effectively centred: re-aim at once instead of travelling. */
 export const SNAP_BELOW = 0.02;
-/** Swings wider than this cut straight across the eye instead of rolling round the rim. */
-export const SWING_DEG = 100;
 
 /**
- * Advance a pose one tick toward (angle, weight). `angle` null = look at the
+ * Advance a pose one tick toward (angle, weight), as PHASE4 "Gaze loop" says:
+ * the angle lerps by `kAngle` along the shortest arc and the weight eases by
+ * `kWeight` (~180 ms), always, for every source. `angle` null = look at the
  * visitor (keep the direction, ease the travel to `weight`, normally 0).
- * - Normal moves: angle lerps by `kAngle` along the shortest arc, weight eases by `kWeight`.
- * - Swings over SWING_DEG: the pupil offset (weight·cosθ, weight·sinθ) lerps as a vector
- *   by `kAngle`, so a 180° change crosses the eye in a straight line (a glance, not an
- *   eye-roll) and hands back to the arc lerp once the remaining turn is ≤ SWING_DEG.
+ * - While the pupil is effectively centred (weight < SNAP_BELOW, under 2% of
+ *   its travel) its direction is invisible, so it re-aims at once and then
+ *   leaves the centre straight toward the target instead of spiralling out.
  * - `snap` (reduced motion, dizzy laps): jump straight to the target angle.
  */
 export function stepPose(p: Pose, angle: number | null, weight: number, kAngle: number, kWeight: number, snap: boolean): void {
-  if (angle !== null) {
-    if (snap || p.weight < SNAP_BELOW) {
-      p.angle = angle;
-    } else {
-      const arc = shortestArc(p.angle, angle);
-      if (Math.abs(arc) > SWING_DEG) {
-        const a = (p.angle * Math.PI) / 180;
-        const b = (angle * Math.PI) / 180;
-        const x = p.weight * Math.cos(a) + (weight * Math.cos(b) - p.weight * Math.cos(a)) * kAngle;
-        const y = p.weight * Math.sin(a) + (weight * Math.sin(b) - p.weight * Math.sin(a)) * kAngle;
-        p.weight = Math.hypot(x, y);
-        if (p.weight > 1e-6) p.angle = angleTo(0, 0, x, y);
-        return;
-      }
-      p.angle = wrap360(p.angle + arc * kAngle);
-    }
-  }
+  if (angle !== null) p.angle = snap || p.weight < SNAP_BELOW ? angle : lerpAngle(p.angle, angle, kAngle);
   p.weight += (weight - p.weight) * kWeight;
   if (Math.abs(weight - p.weight) < 1e-4) p.weight = weight;
 }

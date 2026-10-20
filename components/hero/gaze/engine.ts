@@ -7,10 +7,11 @@
 //   dizzy (hard flick) → scroll (+400 ms settle) → finger (touch, +1.2 s after
 //   release) → gyroscope (opt-in) → pointer (until 4 s idle) → idle glances
 //   (touch) → centre.
-// Each eye aims from its own dome centre (mild convergence); the travel weight
-// comes from the distance to the eye midpoint (dead zone 0.6 × eyeR, full at
-// 2 × eyeR). Angles lerp 0.18 per 60 Hz tick along the shortest arc, the weight
-// eases over ~180 ms, and the canvas redraws only when a pupil moves.
+// Each eye aims from its own dome centre (mild convergence); both share one
+// travel weight from the distance to the eye midpoint: centred inside
+// 0.6 × eyeR, else smoothstep(0.6, 2.0, d / eyeR). For every source, angles
+// lerp 0.18 per 60 Hz tick along the shortest arc, the weight eases over
+// ~180 ms, and the canvas redraws only when a pupil moves.
 // Reduced motion / Pause (lib/motion, live): the gaze still follows the pointer
 // and the scroll but snaps; no blinks, squash, idle glances or dizzy.
 import { getMotionPrefs, subscribeMotion } from "@/lib/motion";
@@ -43,8 +44,6 @@ const QA = process.env.NEXT_PUBLIC_QA === "1";
 const IDLE_MS = 4000;
 const DEAD_ZONE = 0.6; // × eyeR_px: inside it the pupils centre
 const FULL_AT = 2.0; // × eyeR_px: full travel from here out
-/** Near one eye, that eye relaxes to centre instead of flicking across. */
-const NEAR_EYE: [number, number] = [0.15, 0.6];
 const RECT_MAX_AGE = 500;
 // Easing
 const ANGLE_LERP = 0.18; // per 60 Hz tick, shortest arc
@@ -63,13 +62,36 @@ const BLINK_MS = 110;
 const BLINK_EVERY: [number, number] = [4000, 7000];
 const HAPPY_MS = 600;
 const HELLO_DELAY_MS = 280;
+const HELLO_KEY = "vp:ping-hello";
 // Touch (§4.4)
 const GLANCE_EVERY: [number, number] = [1500, 3000];
 const GLANCE_WEIGHT: [number, number] = [0.7, 1];
-const GLANCE_MIN_TURN = 60;
+/** Turn between two held glances, in degrees: a look aside, never a roll round the rim. */
+const GLANCE_TURN: [number, number] = [45, 120];
 const RELEASE_MS = 1200;
 
 const TOUCH_MQ = "(hover: none)";
+
+/**
+ * The "hello" blink belongs to the once-per-session entrance (PHASE4 Hero
+ * scroll), not to every engine start: an <Activity> hide/show or any remount
+ * restarts the engine and decodes the sprites again. The flag lives in
+ * sessionStorage, so a reload in the same session stays quiet like the
+ * entrance does. It is also kept in this module, which outlives the engine,
+ * for when storage is blocked. Returns true once; the caller plays the blink.
+ */
+let helloClaimed = false;
+function claimHello(): boolean {
+  if (helloClaimed) return false;
+  helloClaimed = true;
+  try {
+    if (window.sessionStorage.getItem(HELLO_KEY)) return false;
+    window.sessionStorage.setItem(HELLO_KEY, "1");
+  } catch {
+    /* storage blocked: once per page load */
+  }
+  return true;
+}
 
 export type GazeHandle = {
   /** Boop: happy face for 600 ms + squash (the bubble is PingGaze's). */
@@ -148,6 +170,14 @@ export function startGaze(canvas: HTMLCanvasElement, data: GazeData): GazeHandle
 
   const probe: GazeProbe = { aim: null, cell: -1, scaleY: 1, source: "none" };
   if (QA) window.__gaze = probe;
+
+  /** QA probe write. The aim is rounded to 0.1° and kept in [0, 360), so 359.97 → 0, not 360. */
+  const writeProbe = (aim: GazeAim, scaleY: number, source: GazeSource) => {
+    probe.aim = aim === null ? null : wrap360(Math.round(aim * 10) / 10);
+    probe.cell = cellOf(probe.aim);
+    probe.scaleY = Math.round(scaleY * 10000) / 10000;
+    probe.source = source;
+  };
 
   const scheduleBlink = (now: number) => {
     nextBlinkAt = now + rand(...BLINK_EVERY);
@@ -276,7 +306,7 @@ export function startGaze(canvas: HTMLCanvasElement, data: GazeData): GazeHandle
       renderer.setEyes(pose[0].angle, 0, pose[1].angle, 0);
       renderer.frame(now);
       if (ok) {
-        helloAt = now + HELLO_DELAY_MS;
+        if (claimHello()) helloAt = now + HELLO_DELAY_MS;
         scheduleBlink(now);
       }
     },
@@ -314,15 +344,18 @@ export function startGaze(canvas: HTMLCanvasElement, data: GazeData): GazeHandle
     const d = Math.hypot(x - mx, y - my);
     if (d < DEAD_ZONE * eyeR) return centre(source);
     const w = smoothstep(DEAD_ZONE, FULL_AT, d / eyeR);
-    const t: Target = { source, aim: angleTo(mx, my, x, y), angle: [0, 0], weight: [0, 0], snap: false };
-    for (let i = 0; i < 2; i++) {
-      const e = geo.eyes[i];
-      const ex = r.left + e.fx * r.width;
-      const ey = r.top + e.fy * r.height;
-      t.angle[i] = angleTo(ex, ey, x, y);
-      t.weight[i] = w * smoothstep(NEAR_EYE[0], NEAR_EYE[1], Math.hypot(x - ex, y - ey) / eyeR);
-    }
-    return t;
+    const [l, rt] = geo.eyes;
+    return {
+      source,
+      aim: angleTo(mx, my, x, y),
+      // Per eye: θ from that eye's own dome centre (mild convergence); one shared weight.
+      angle: [
+        angleTo(r.left + l.fx * r.width, r.top + l.fy * r.height, x, y),
+        angleTo(r.left + rt.fx * r.width, r.top + rt.fy * r.height, x, y),
+      ],
+      weight: [w, w],
+      snap: false,
+    };
   };
 
   const idleGlance = (now: number): Target => {
@@ -334,7 +367,7 @@ export function startGaze(canvas: HTMLCanvasElement, data: GazeData): GazeHandle
         if (renderer.ready && heroVisible) renderer.blink(BLINK_MS);
       } else {
         const from = glance.aim ?? rand(0, 360);
-        glance.aim = wrap360(from + (Math.random() < 0.5 ? -1 : 1) * rand(GLANCE_MIN_TURN, 180));
+        glance.aim = wrap360(from + (Math.random() < 0.5 ? -1 : 1) * rand(...GLANCE_TURN));
         glance.weight = rand(...GLANCE_WEIGHT);
       }
       glance.next = now + rand(...GLANCE_EVERY);
@@ -374,8 +407,10 @@ export function startGaze(canvas: HTMLCanvasElement, data: GazeData): GazeHandle
     const reactScroll = heroVisible || roomVisible;
     if (!reactScroll) {
       // Nothing of Ping is on screen: let a squash settle and skip the rest.
+      // The probe stays live: nothing drives the gaze, and scaleY springs back.
       if (ok) squash.scroll(0);
-      squash.apply();
+      const scaleY = squash.apply();
+      if (QA) writeProbe(null, scaleY, "none");
       return;
     }
     const v = getScrollVelocity();
@@ -415,18 +450,11 @@ export function startGaze(canvas: HTMLCanvasElement, data: GazeData): GazeHandle
     renderer.setEyes(pose[0].angle, pose[0].weight, pose[1].angle, pose[1].weight);
     if (heroVisible) renderer.frame(now);
 
-    let scaleY = 1;
-    if (ok) {
-      squash.scroll(scrolling ? Math.abs(sv) : 0);
-      scaleY = squash.apply();
-    }
+    // With motion off, squash.reset() left both proxies at rest, so apply() returns 1.
+    if (ok) squash.scroll(scrolling ? Math.abs(sv) : 0);
+    const scaleY = squash.apply();
 
-    if (QA) {
-      probe.aim = t.aim === null ? null : Math.round(t.aim * 10) / 10;
-      probe.cell = cellOf(probe.aim);
-      probe.scaleY = Math.round(scaleY * 10000) / 10000;
-      probe.source = t.source;
-    }
+    if (QA) writeProbe(t.aim, scaleY, t.source);
   };
   const offTick = addTick(tick);
 

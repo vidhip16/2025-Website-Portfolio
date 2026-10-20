@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { mascot } from "@/content/site";
 import type { GazeData } from "@/lib/gaze";
@@ -16,7 +16,9 @@ import { SpeechBubble } from "./SpeechBubble";
  * engine. It finds its siblings through the DOM: `closest("figure.ping")` for
  * the figure, and `figure.querySelector("button.ping-boop")` for boops. On
  * touch screens it also portals the LookAround toggle into the figure (after
- * the boop overlay, so the overlay doesn't cover it). No other props.
+ * the boop overlay, so the overlay doesn't cover it). If motion access is
+ * denied, the toggle stays mounted (disabled) until the user moves on, so the
+ * element they activated is never removed while they are on it. No other props.
  *
  * First load stays tiny: GSAP, the ticker, lib/scroll and the engine arrive
  * with import("./gaze/engine") after `load` (desktop) or load + idle (touch).
@@ -50,6 +52,8 @@ export function PingGaze({ data }: PingGazeProps) {
   const gyroOnRef = useRef(false);
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [gyro, setGyro] = useState<LookAroundState>("off");
+  const [lookGone, setLookGone] = useState(false);
+  const dismissLook = useCallback(() => setLookGone(true), []);
   const touch = useSyncExternalStore(subscribeTouch, canLookAround, onServer);
 
   useEffect(() => {
@@ -125,8 +129,8 @@ export function PingGaze({ data }: PingGazeProps) {
         style={{ left: `${s.x}%`, top: `${s.y}%`, width: `${s.w}%`, height: `${s.h}%` }}
       />
       <SpeechBubble ref={bubbleRef} liveRef={liveRef} text={mascot.boopLine} />
-      {touch && host && gyro !== "denied"
-        ? createPortal(<LookAround on={gyro === "on"} onChange={onLookAround} />, host)
+      {touch && host && !lookGone
+        ? createPortal(<LookAround state={gyro} onChange={onLookAround} onDismiss={dismissLook} />, host)
         : null}
     </>
   );
