@@ -10,7 +10,7 @@ import type { TierReason } from "@/lib/quality";
 // The dot stage's first-load island (blueprint §5.5 "Loading"). It renders nothing until the
 // page has loaded and gone idle, or until #about is one viewport away, whichever comes first.
 // Then it picks a tier and mounts one of two lazy chunks:
-//   DotStage    WebGL (three.js), T2 12k points on desktop, T1 4k on phones / coarse pointers
+//   DotStage    WebGL2 (engine.ts on gl.ts), T2 12k points on desktop, T1 4k on phones / coarse pointers
 //   StaticDots  T0 halftones: no WebGL2, Save-Data, a lost context, the governor's last drop,
 //               and (while it lasts) reduced motion or Pause
 // Neither chunk is in first-load JS.
