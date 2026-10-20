@@ -111,7 +111,6 @@ if (exists(pingSrc)) {
 }
 const heroCritical = pingBytes == null ? null : gz(Buffer.from(html)) + css + preloadedFonts + pingBytes;
 
-const sizeOf = (p) => (exists(p) ? fs.statSync(p).size : null);
 const gazeBytes = () => {
   const files = ["eyes-blank.webp", "eyes-blink.webp", "eyes-happy.webp", "pupil-l.webp", "pupil-r.webp"].map((f) => `public/ping/${f}`);
   return files.every(exists) ? files.reduce((s, f) => s + fs.statSync(f).size, 0) : null;

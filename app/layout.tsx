@@ -5,6 +5,8 @@ import { SITE_URL, person, seo } from "@/content/site";
 import { SkipLink } from "@/components/shell/SkipLink";
 import { Nav } from "@/components/shell/Nav";
 import { SmoothScroll } from "@/components/shell/SmoothScroll";
+import { MotionPrefs } from "@/components/shell/MotionPrefs";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -55,7 +57,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <SkipLink />
         <Nav />
         <SmoothScroll />
+        <MotionPrefs />
         {children}
+        <JsonLd />
       </body>
     </html>
   );
