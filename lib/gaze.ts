@@ -88,11 +88,15 @@ export type DotsProbe = {
   /** pupil direction in degrees (screen space) */
   pupilDir: number;
   tier: "T0" | "T1" | "T2";
+  /** dot-pupil eye midpoint in client px (lets specs check pupilDir at the shape centre) */
+  eyes?: [number, number];
 };
 
 /** Frame-time probe exposed as window.__perf when NEXT_PUBLIC_QA=1. */
 export type PerfProbe = {
   frames: number[];
+  /** long-task durations in ms, where PerformanceObserver supports them */
+  longTasks?: number[];
   reset(): void;
 };
 

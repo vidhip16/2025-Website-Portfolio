@@ -26,6 +26,11 @@ import { defineConfig, devices, type PlaywrightTestConfig } from "@playwright/te
 const PORT = Number(process.env.PORT || 3100);
 const BASE_URL = process.env.BASE_URL || `http://127.0.0.1:${PORT}`;
 const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(BASE_URL);
+// `--project unit` needs no server (and no QA build): skip webServer when only unit runs.
+const projectArgs = process.argv.flatMap((a, i, all) =>
+  a === "--project" ? [all[i + 1]] : a.startsWith("--project=") ? [a.slice("--project=".length)] : [],
+);
+const unitOnly = projectArgs.length > 0 && projectArgs.every((p) => p === "unit");
 /** Gate 7 only. Registers the perf project and nothing else. */
 const PERF_RUN = process.env.PW_PERF === "1";
 
@@ -84,7 +89,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: PERF_RUN ? PERF_PROJECTS : DEFAULT_PROJECTS,
-  webServer: isLocal
+  webServer: isLocal && !unitOnly
     ? {
         command: `pnpm start --port ${PORT}`,
         url: BASE_URL,

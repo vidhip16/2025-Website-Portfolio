@@ -40,6 +40,10 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  experimental: {
+    // Refuse oversized posts before parsing; the contact action's own 8 KB check is the second layer.
+    serverActions: { bodySizeLimit: "64kb" },
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     qualities: [60, 75, 80],

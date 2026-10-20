@@ -14,7 +14,9 @@
     "lint": "eslint .",
     "test:e2e": "playwright test",
     "lhci": "lhci autorun --config=tests/lighthouserc.json",
-    "budget": "node scripts/byte-budget.mjs"
+    "budget": "node scripts/byte-budget.mjs",
+    "test:unit": "playwright test --project=unit",
+    "test:perf": "PW_PERF=1 playwright test --project=perf"
   },
   "dependencies": {
     "@gsap/react": "2.1.2",

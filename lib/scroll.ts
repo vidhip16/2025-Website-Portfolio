@@ -40,6 +40,8 @@ function bindNative() {
 export function startScroll(opts: { smooth: boolean }): void {
   if (typeof window === "undefined") return;
   gsap.registerPlugin(ScrollTrigger);
+  // QA builds expose the ScrollTrigger class so specs can count live triggers.
+  if (process.env.NEXT_PUBLIC_QA === "1") (window as unknown as { __st?: unknown }).__st = ScrollTrigger;
   bindNative();
   if (!opts.smooth) {
     stopScroll();

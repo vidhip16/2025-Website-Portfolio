@@ -1,24 +1,25 @@
 import localFont from "next/font/local";
-import { Mona_Sans } from "next/font/google";
+import { Instrument_Sans, Instrument_Serif } from "next/font/google";
 
-// Fraunces: static instance (SOFT 100, opsz 144, WONK 0, wght 700–800), built by
-// scripts/make_fonts.py. The only preloaded font.
-export const fraunces = localFont({
-  src: "../public/fonts/fraunces-display.woff2",
-  weight: "700 800",
-  style: "normal",
+// Revision R1 type system (DECISIONS 25). All SIL OFL 1.1, self-hosted by next/font.
+// Display: Instrument Serif, roman + italic (the italic sets "Patel"). The only
+// preloaded fonts, because the h1 is set in them.
+export const serif = Instrument_Serif({
+  weight: "400",
+  style: ["normal", "italic"],
+  subsets: ["latin"],
   display: "swap",
   preload: true,
-  adjustFontFallback: "Times New Roman",
-  variable: "--font-fraunces",
+  variable: "--font-serif",
 });
 
-export const mona = Mona_Sans({
+// Body, UI and subtitles.
+export const sans = Instrument_Sans({
   subsets: ["latin"],
   weight: "variable",
   display: "swap",
   preload: false,
-  variable: "--font-mona",
+  variable: "--font-sans-face",
 });
 
 // Departure Mono v1.500 (github.com/rektdeckard/departure-mono, OFL 1.1).
