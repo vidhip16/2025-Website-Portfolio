@@ -1,0 +1,73 @@
+{
+  "order": [
+    "ping-hero",
+    "ping-seat",
+    "braces",
+    "db-net",
+    "terminal",
+    "envelope"
+  ],
+  "shapes": {
+    "ping-hero": {
+      "src": "/ping/ping-body.png",
+      "eyes": "gaze.json"
+    },
+    "ping-seat": {
+      "src": "/ping/ping-body.png",
+      "eyes": "gaze.json",
+      "scale": 0.6
+    },
+    "braces": {
+      "src": "/dots/braces.png",
+      "eyes": [
+        [
+          0.42,
+          0.44
+        ],
+        [
+          0.58,
+          0.44
+        ]
+      ]
+    },
+    "db-net": {
+      "src": "/dots/db-net.png",
+      "eyes": [
+        [
+          0.235,
+          0.3
+        ],
+        [
+          0.345,
+          0.3
+        ]
+      ]
+    },
+    "terminal": {
+      "src": "/dots/terminal.png",
+      "eyes": [
+        [
+          0.4,
+          0.3
+        ],
+        [
+          0.6,
+          0.3
+        ]
+      ]
+    },
+    "envelope": {
+      "src": "/dots/envelope.png",
+      "eyes": [
+        [
+          0.42,
+          0.62
+        ],
+        [
+          0.58,
+          0.62
+        ]
+      ]
+    }
+  }
+}
