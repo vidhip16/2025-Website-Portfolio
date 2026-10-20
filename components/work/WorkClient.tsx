@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect } from "react";
-import { fromFlatY } from "@/lib/heroPin";
 import { afterLoadIdle } from "@/lib/idle";
 import { revealDelta, shiftTrack, trackAnimation } from "./reveal";
 import { rememberScroll, takeRestore } from "./scrollMemory";
@@ -32,8 +31,10 @@ export function WorkClient({ slugs }: { slugs: readonly string[] }) {
   const router = useRouter();
 
   useLayoutEffect(() => {
+    // The stored spot is relative to #work, so this is right with or without the hero pin
+    // (heroScrollMotion adds the pin's length later if it isn't there yet).
     const y = takeRestore();
-    if (y !== null) window.scrollTo({ top: fromFlatY(y), behavior: "instant" });
+    if (y !== null) window.scrollTo({ top: y, behavior: "instant" });
   }, []);
 
   useEffect(() => {

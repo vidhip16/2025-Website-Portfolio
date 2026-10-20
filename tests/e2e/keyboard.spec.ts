@@ -80,6 +80,43 @@ test.describe("keyboard path", () => {
       .toBeLessThanOrEqual(50);
   });
 
+  test("back to the gallery after a reload on the detail page keeps #work where it was", async ({ page }) => {
+    // The reload is a new document: `/` then mounts with no hero controller loaded, so Work
+    // restores the position into a page that has no pin yet (the pin is added a moment later).
+    test.slow();
+    await gotoAndSettle(page, "/");
+    await settleApp(page);
+
+    const workTop = () => page.evaluate(() => document.getElementById("work")!.getBoundingClientRect().top);
+    const link = page.locator(SEL.indexLink).first();
+    await link.scrollIntoViewIfNeeded();
+    await waitForScrollIdle(page);
+    const slug = await link.getAttribute("data-index-link");
+    const before = await workTop();
+    expect(await scrollY(page), "the index should be below the hero").toBeGreaterThan(0);
+
+    await link.click();
+    await expect.poll(() => pathname(page)).toBe(`/work/${slug}`);
+    await expect(page.locator(SEL.detailHero)).toBeVisible();
+
+    await page.reload();
+    await settleApp(page);
+    await expect(page.locator(SEL.detailHero)).toBeVisible();
+
+    await page.locator(SEL.back).click();
+    await expect.poll(() => pathname(page)).toBe("/");
+    await settleApp(page);
+    await expect
+      .poll(
+        async () => {
+          await waitForScrollIdle(page);
+          return Math.abs((await workTop()) - before);
+        },
+        { timeout: 10_000, message: `#work's top was ${before}px before opening ${slug}` },
+      )
+      .toBeLessThanOrEqual(50);
+  });
+
   test("mosaic clones stay out of the tab order and the accessibility tree", async ({ page }) => {
     await gotoAndSettle(page, "/");
     await settleApp(page);

@@ -9,6 +9,7 @@ import { Footer } from "@/components/footer/Footer";
 import { BackLink } from "@/components/work/BackLink";
 import { RouteFocus } from "@/components/work/RouteFocus";
 import { MORPH_SHARE, morphName } from "@/components/work/transition";
+import styles from "@/components/work/detail.module.css";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -63,35 +64,51 @@ export default async function ProjectPage({ params }: Props) {
         tabIndex={-1}
         className="px-[var(--gutter)] pb-[clamp(72px,10vw,128px)] pt-[calc(var(--nav-h)+clamp(20px,4vh,48px))]"
       >
+        {/* R1 depth: grain and the arcade, bubblegum and lilac glows behind the hero (detail.module.css). */}
+        <div aria-hidden="true" className={`${styles.backdrop} grain`} />
         <RouteFocus />
-        <article aria-labelledby="project-title" className="mx-auto max-w-[1320px]">
+        <article aria-labelledby="project-title" className="relative z-10 mx-auto max-w-[1320px]">
           <BackLink
             label={work.ui.back}
             className="inline-flex min-h-11 items-center gap-2 rounded-full pr-3 font-semibold text-ink no-underline hover:underline"
           />
 
-          <div className="mt-4 grid items-start gap-x-[clamp(32px,6vw,96px)] gap-y-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
-            <ViewTransition name={morphName(project.slug)} share={MORPH_SHARE} default="none">
-              <div
-                data-detail-hero
-                className="relative aspect-[4/5] w-full max-w-[560px] overflow-hidden rounded-tile bg-lilac"
-              >
-                <Image
-                  src={project.cover.src}
-                  alt={project.cover.alt}
-                  fill
-                  loading="eager"
-                  fetchPriority="high"
-                  sizes="(max-width:1024px) 92vw, 40vw"
-                  className="object-cover"
-                />
+          <div
+            className={`${styles.hero} mt-4 grid items-start gap-y-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]`}
+          >
+            {/* The hung print: a tilted plate behind a white mat with a cast shadow, and a hairline
+                wall label. The view-transition box inside is unchanged, so the morph still pairs. */}
+            <div className={styles.print}>
+              <div className={styles.frame}>
+                <span aria-hidden="true" className={styles.plate} />
+                <div className={styles.mat}>
+                  <ViewTransition name={morphName(project.slug)} share={MORPH_SHARE} default="none">
+                    <div
+                      data-detail-hero
+                      className="relative aspect-[4/5] w-full max-w-[560px] overflow-hidden rounded-tile bg-lilac"
+                    >
+                      <Image
+                        src={project.cover.src}
+                        alt={project.cover.alt}
+                        fill
+                        loading="eager"
+                        fetchPriority="high"
+                        sizes="(max-width:1024px) 92vw, 40vw"
+                        className="object-cover"
+                      />
+                    </div>
+                  </ViewTransition>
+                </div>
               </div>
-            </ViewTransition>
+              <p className={styles.caption} aria-hidden="true">
+                {String(at + 1).padStart(2, "0")} / {String(all.length).padStart(2, "0")}
+              </p>
+            </div>
 
             <div className="lg:pt-[clamp(8px,4vh,48px)]">
               <h1
                 id="project-title"
-                className="text-[clamp(2.75rem,6.5vw,6rem)] leading-[0.92] tracking-[-0.025em]"
+                className={`${styles.title} text-[clamp(2.75rem,6.5vw,6rem)] leading-[0.92] tracking-[-0.025em]`}
               >
                 {project.title}
               </h1>

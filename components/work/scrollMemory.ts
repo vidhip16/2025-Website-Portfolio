@@ -2,17 +2,28 @@
 // "Back to the gallery" can return them to the same spot (§6.3, §6.4).
 // sessionStorage only; every access is guarded (private mode, blocked storage).
 //
-// The position is kept flat (lib/heroPin): as if the hero's desktop pin were not in the page. The
-// pin comes and goes (a cached controller has it by the time Work restores, a fresh mount has not
-// built it yet), and a raw scrollY would then land one pin length off.
-import { toFlatY } from "@/lib/heroPin";
+// The position is stored relative to #work (how far the viewport top sat below the
+// section's top), never as a raw window.scrollY. On desktop the hero pin adds 140vh of
+// spacing above #work, but only once the lazy hero controller has loaded; a raw scrollY
+// measured with the pin would land 140vh too far in a document that has no pin yet (a
+// reload on the detail page, a new tab). Relative to #work it is right either way, and
+// when the pin is added later heroScrollMotion shifts the scroll by the pin length, so
+// the same content stays in view.
 
-const POS = "vp:work-scroll";
+const POS = "vp:work-offset";
 const RESTORE = "vp:work-restore";
+
+/** The top of #work in document coordinates, or null when the section isn't mounted. */
+function workTop(): number | null {
+  const work = document.getElementById("work");
+  return work ? work.getBoundingClientRect().top + window.scrollY : null;
+}
 
 export function rememberScroll(): void {
   try {
-    sessionStorage.setItem(POS, String(Math.round(toFlatY(window.scrollY))));
+    const top = workTop();
+    if (top === null) return;
+    sessionStorage.setItem(POS, String(Math.round(window.scrollY - top)));
   } catch {
     /* storage blocked: the back link falls back to /#work */
   }
@@ -35,13 +46,19 @@ export function requestRestore(): void {
   }
 }
 
-/** Returns the stored (flat) position once, if a restore was requested. Pass it through `fromFlatY`. */
+/**
+ * Returns the document Y to scroll to, once, if a restore was requested: #work's
+ * current top plus the stored offset. Call it after `/` has laid out.
+ */
 export function takeRestore(): number | null {
   try {
     if (sessionStorage.getItem(RESTORE) !== "1") return null;
     sessionStorage.removeItem(RESTORE);
-    const y = Number(sessionStorage.getItem(POS));
-    return Number.isFinite(y) && y >= 0 ? y : null;
+    const stored = sessionStorage.getItem(POS);
+    const top = workTop();
+    if (stored === null || top === null) return null;
+    const offset = Number(stored);
+    return Number.isFinite(offset) ? Math.max(0, Math.round(top + offset)) : null;
   } catch {
     return null;
   }
