@@ -103,7 +103,7 @@ export function startHeroScroll(section: HTMLElement): () => void {
 
   // ── Desktop: pin + scrub ─────────────────────────────────────────────
   const pinned = () => {
-    const palette = acquirePalette(false);
+    const palette = acquirePalette();
 
     const tl = gsap.timeline({
       defaults: { ease: "none", duration: SPLIT },

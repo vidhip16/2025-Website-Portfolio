@@ -104,6 +104,8 @@ declare global {
   interface Window {
     __gaze?: GazeProbe;
     __dots?: DotsProbe;
+    /** QA builds only: when true the dot governor never drops a tier (gate 7 measures a fixed tier). */
+    __dotsHoldTier?: boolean;
     __perf?: PerfProbe;
   }
 }

@@ -112,7 +112,7 @@ test.describe("palette controller", () => {
   test("a change fades to the other palette in time and then rests on it, complete", async () => {
     const { body } = installDom();
     const { acquirePalette } = await import("../../components/room/palette");
-    const palette = acquirePalette(false);
+    const palette = acquirePalette();
     palette.set(false);
     expect(near(rgb(bg(body)), hexRgb(TOKENS["--paper"]))).toBe(true);
     expect(near(rgb(fg(body)), hexRgb(TOKENS["--ink"]))).toBe(true);
@@ -140,7 +140,7 @@ test.describe("palette controller", () => {
   test("a change back while fading turns around and ends on paper", async () => {
     const { body } = installDom();
     const { acquirePalette } = await import("../../components/room/palette");
-    const palette = acquirePalette(false);
+    const palette = acquirePalette();
     palette.set(true);
     await wait(90);
     palette.set(false);
@@ -153,8 +153,8 @@ test.describe("palette controller", () => {
   test("the last release leaves the body to the stylesheet; an earlier one does not", async () => {
     const { body } = installDom();
     const { acquirePalette } = await import("../../components/room/palette");
-    const hero = acquirePalette(false);
-    const room = acquirePalette(false);
+    const hero = acquirePalette();
+    const room = acquirePalette();
     hero.set(true);
     await wait(REST_MS);
     hero.release();
@@ -169,21 +169,21 @@ test.describe("palette controller", () => {
   test("a release and an acquire in the same breath is a rebuild: no flash of paper", async () => {
     const { body } = installDom();
     const { acquirePalette } = await import("../../components/room/palette");
-    const first = acquirePalette(false);
+    const first = acquirePalette();
     first.set(true);
     await wait(REST_MS);
     first.release();
-    const second = acquirePalette(false);
+    const second = acquirePalette();
     second.set(true);
     expect(near(rgb(bg(body)), hexRgb(TOKENS["--night"]))).toBe(true);
     expect(near(rgb(fg(body)), hexRgb(TOKENS["--moon"]))).toBe(true);
     second.release();
   });
 
-  test("phones: body holds one palette, the veil carries the blend and is off at rest", async () => {
+  test("body holds one palette, the veil carries the blend and is off at rest", async () => {
     const { body, veils } = installDom();
     const { acquirePalette } = await import("../../components/room/palette");
-    const palette = acquirePalette(true);
+    const palette = acquirePalette();
     palette.set(false);
     expect(veils().length).toBe(0); // paper at rest needs no veil
     palette.set(true);

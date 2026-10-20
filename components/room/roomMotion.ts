@@ -89,7 +89,7 @@ function build(room: HTMLElement, desktop: boolean, boopLine: string): () => voi
   const anchor = desktop ? document.querySelector<HTMLElement>('[data-dots-anchor="contact"]') : null;
 
   // The page palette is shared with the hero (palette.ts): this only says which one is wanted.
-  const palette = acquirePalette(!desktop);
+  const palette = acquirePalette();
 
   const channel = (): Channel => ({ target: 0, value: 0 });
   const enter = channel();

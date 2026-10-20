@@ -56,6 +56,13 @@ const atBottom = (page: Page) =>
 
 /** Load, let lazy chunks land, reset the probe, scroll top → bottom, summarise the intervals. */
 async function measure(page: Page, opts: { scroll: "wheel" | "touch"; cdp: CDPSession; cpuThrottle: number }): Promise<Run> {
+  // Hold the dot tier (QA hook) so the run measures the tier §8 names: T2 on desktop, T1 on phones.
+  // Without it the governor sometimes dropped mid-run on headless Chromium's software GL (the night
+  // glow is fill-bound there), so the same build measured T2, T1 or T0 from run to run. The
+  // governor itself is covered by tests/unit/dots-governor.spec.ts.
+  await page.addInitScript(() => {
+    window.__dotsHoldTier = true;
+  });
   await gotoAndSettle(page, "/");
   await settleApp(page);
   await expectProbe(page, "__perf");

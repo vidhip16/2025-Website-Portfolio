@@ -9,12 +9,12 @@
 // time, whatever the scroll does. The scroll only decides which one is wanted (night from n = .5,
 // paletteMath.isNight), so the page can only rest on one of them.
 //
-//   desktop  body --bg runs between the two grounds over the fade; --fg flips at its midpoint (ink
-//            or moon, whichever is on the nearer ground), so the worst moment of a fade is about
-//            3.3 : 1 for a few frames instead of 1.04 : 1
-//   phones   restyling the whole page on every frame cost the frame budget (DECISIONS 36), so body
-//            flips once, at the midpoint, and a fixed veil's opacity carries the blend on the
-//            compositor (paletteMath.phoneVeil)
+// Body holds one complete palette at a time and flips once, at the fade's midpoint (text and ground
+// together, so the worst moment of a fade is about 3.3 : 1 for a few frames instead of 1.04 : 1). A
+// fixed veil under all content carries the blend on the compositor (paletteMath.veilBlend).
+// Repainting --bg on every frame of the fade restyled and re-rastered the whole page each frame: on
+// phones that broke the frame budget (DECISIONS 36), and on desktop it tripped the dot governor
+// down to T1 during the hero's fade (DECISIONS 40).
 //
 // One state for every caller. The hero and the room each call set() whenever they sync, and
 // acquire/release count them, so they cannot disagree about what the page looks like; the body is
@@ -23,7 +23,7 @@
 //
 // Loaded only by the lazy controllers (it imports GSAP). Everything is undone by release().
 import { gsap } from "gsap";
-import { FADE_S, isNight, phoneVeil } from "./paletteMath";
+import { FADE_S, veilBlend } from "./paletteMath";
 import { paintBody, releaseBody, token } from "./roomStage";
 
 export type Palette = {
@@ -43,7 +43,6 @@ const shown = { n: 0 };
 let target: 0 | 1 = 0;
 let tween: gsap.core.Tween | null = null;
 let users = 0;
-let phone = false;
 let paper = "";
 let nightColour = "";
 let bgAt: Mix | null = null;
@@ -75,15 +74,10 @@ function setVeil(colour: string, opacity: number) {
   if (o !== veilOpacity) veil.style.opacity = veilOpacity = o;
 }
 
-/** Writes `shown` to the body (and, on phones, the veil). Writes only what changed. */
+/** Writes `shown` to the body and the veil. Writes only what changed. */
 function paint() {
   if (!bgAt || !fgAt) return;
-  const n = shown.n;
-  if (!phone) {
-    paintBody(bgAt(n), fgAt(isNight(n) ? 1 : 0));
-    return;
-  }
-  const { night, opacity } = phoneVeil(n);
+  const { night, opacity } = veilBlend(shown.n);
   paintBody(bgAt(night ? 1 : 0), fgAt(night ? 1 : 0));
   setVeil(night ? paper : nightColour, opacity);
 }
@@ -99,8 +93,7 @@ function clear() {
   bgAt = fgAt = null;
 }
 
-/** `isPhone`: below 1024 px (veil blend); the hero pin is desktop only. */
-export function acquirePalette(isPhone: boolean): Palette {
+export function acquirePalette(): Palette {
   if (users++ === 0) {
     paper = token("--paper");
     nightColour = token("--night");
@@ -109,7 +102,6 @@ export function acquirePalette(isPhone: boolean): Palette {
     // A rebuild keeps the palette it had; a fade that was running is taken to its end.
     shown.n = target = performance.now() - lastAt < REBUILD_MS ? lastTarget : 0;
   }
-  phone = isPhone;
   let live = true;
   return {
     set(night) {

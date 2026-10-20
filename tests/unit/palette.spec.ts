@@ -5,7 +5,7 @@
 import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
-import { FADE_S, NIGHT_AT, isNight, phoneVeil } from "../../components/room/paletteMath";
+import { FADE_S, NIGHT_AT, isNight, veilBlend } from "../../components/room/paletteMath";
 
 type Rgb = [number, number, number];
 
@@ -80,10 +80,10 @@ test.describe("palette: two complete palettes, never a mix at rest", () => {
   });
 });
 
-test.describe("palette: phone veil", () => {
+test.describe("palette: veil blend", () => {
   test("body plus veil composite to the same ground as the mix, at every n", () => {
     sweep((n) => {
-      const { night: dark, opacity } = phoneVeil(n);
+      const { night: dark, opacity } = veilBlend(n);
       const body = dark ? night : paper;
       const veil = dark ? paper : night;
       const composite = mix(body, veil, opacity);
@@ -93,17 +93,17 @@ test.describe("palette: phone veil", () => {
   });
 
   test("at rest the veil is off, and the text colour flips once, at the midpoint", () => {
-    expect(phoneVeil(0)).toEqual({ night: false, opacity: 0 });
-    expect(phoneVeil(1)).toEqual({ night: true, opacity: 0 });
+    expect(veilBlend(0)).toEqual({ night: false, opacity: 0 });
+    expect(veilBlend(1)).toEqual({ night: true, opacity: 0 });
     let flips = 0;
-    let last = phoneVeil(0).night;
+    let last = veilBlend(0).night;
     sweep((n) => {
-      const now = phoneVeil(n).night;
+      const now = veilBlend(n).night;
       if (now !== last) flips++;
       last = now;
     });
     expect(flips).toBe(1);
-    expect(phoneVeil(0.499).night).toBe(false);
-    expect(phoneVeil(0.5).night).toBe(true);
+    expect(veilBlend(0.499).night).toBe(false);
+    expect(veilBlend(0.5).night).toBe(true);
   });
 });

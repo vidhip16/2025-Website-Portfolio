@@ -11,12 +11,11 @@ export const FADE_S = 0.28;
 export const isNight = (n: number): boolean => n >= NIGHT_AT;
 
 /**
- * Phones (< 1024 px): body holds one complete palette and a fixed veil carries the blend on the
- * compositor. Below the midpoint body is paper under a night veil at opacity n; from it on body is
+ * Body holds one complete palette and a fixed veil carries the blend on the compositor. Below the midpoint body is paper under a night veil at opacity n; from it on body is
  * night under a paper veil at 1 − n. The result is the same colour as interpolate(paper, night, n)
- * at every n, with body's text colour flipping once, at the midpoint (DECISIONS 36).
+ * at every n, with body's text colour flipping once, at the midpoint (DECISIONS 36, 40).
  */
-export function phoneVeil(n: number): { night: boolean; opacity: number } {
+export function veilBlend(n: number): { night: boolean; opacity: number } {
   const night = isNight(n);
   return { night, opacity: night ? 1 - n : n };
 }

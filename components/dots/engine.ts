@@ -729,7 +729,9 @@ export function startDotStage({ tier: requested, onFallback }: DotStageOptions):
     if (visible) {
       if (!render(gpu)) return; // lost context (its event fails the stage) or already failed
       drewVisible = true;
-      if (renderedLast && governor.push(rawDt)) dropTier();
+      // QA builds can hold the tier: gate 7 measures T2/T1 themselves, and headless Chromium's
+      // software GL stalls on the night glow's fill rate, which a real GPU does not.
+      if (renderedLast && governor.push(rawDt) && !(QA && window.__dotsHoldTier)) dropTier();
       renderedLast = true;
     } else {
       if (drewVisible) clear(gl);
